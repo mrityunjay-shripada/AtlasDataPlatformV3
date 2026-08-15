@@ -966,7 +966,7 @@ export default function App() {
                                         onClick={() => setChannelsOpen((o) => !o)}
                                       >
                                         {channelsOpen ? 'Hide channels' : `View ${list.length} channel${list.length === 1 ? '' : 's'}`}
-                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">{nVid || list.reduce((s, c) => s + Number(c.videos ?? c.count || 0), 0)} videos</span>
+                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">{nVid || list.reduce((s, c) => s + Number((c.videos ?? c.count) || 0), 0)} videos</span>
                                       </button>
                                       {channelsOpen && (
                                         <ul className="text-sm space-y-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200/60 bg-slate-50/80 p-3">
