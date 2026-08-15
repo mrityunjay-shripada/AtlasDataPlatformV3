@@ -289,6 +289,58 @@ const GENRE_DOT: Record<string, string> = {
 }
 
 
+
+export function CreatorExecSummary({ reportText, analysis }: { reportText?: string; analysis?: any }) {
+  const root = analysis?.analysis || analysis || {}
+  const genres = root.genre_distribution || {}
+  const total = Object.values(genres).reduce((s: number, v: any) => s + Number(v), 0) || 1
+  const ranked = Object.entries(genres)
+    .filter(([k]) => !['unknown', 'other'].includes(String(k).toLowerCase()))
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+  const top = ranked.slice(0, 2)
+  const topPct = top.reduce((s, [, v]) => s + Number(v), 0)
+  const topShare = Math.round((topPct / total) * 100)
+  const topNames = top.map(([k]) => String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+  const sparse = ranked.filter(([, v]) => Number(v) / total < 0.05).slice(0, 4)
+  // also zero genres from whitespace notes if any
+  const openNames = sparse.map(([k]) => String(k).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+  // mystery etc with 0 - from analysis saturation/whitespace if present
+  const missing = (root.whitespace_notes || root.saturation_notes || [])
+    .join(' ')
+  // pull known sparse from key findings style
+  const zeroish = ['mystery', 'supernatural', 'tragedy']
+    .filter((g) => !genres[g] || Number(genres[g]) === 0)
+    .map((g) => g.charAt(0).toUpperCase() + g.slice(1))
+  const openList = Array.from(new Set([...openNames, ...zeroish])).slice(0, 4)
+
+  return (
+    <div className="grid sm:grid-cols-2 gap-3">
+      <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-4">
+        <div className="text-[11px] font-extrabold uppercase tracking-wide text-amber-800 mb-2">Crowded topics</div>
+        <p className="text-sm font-medium text-slate-900 leading-relaxed">
+          {topNames.length
+            ? `${topNames.join(' & ')} make up about ${topShare}% of this batch.`
+            : 'A few genres dominate this batch.'}
+        </p>
+        <p className="text-[12px] text-slate-600 mt-2 leading-snug">
+          Lots of creators are already here — a clear hook helps you stand out.
+        </p>
+      </div>
+      <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/50 p-4">
+        <div className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-800 mb-2">Quiet lanes</div>
+        <p className="text-sm font-medium text-slate-900 leading-relaxed">
+          {openList.length
+            ? `${openList.join(', ')} barely show up in these videos.`
+            : 'No clear quiet lanes in this batch yet.'}
+        </p>
+        <p className="text-[12px] text-slate-600 mt-2 leading-snug">
+          Thin in this sample only — not a guarantee the whole platform is empty.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function InsightCallout({
   kicker,
   headline,
@@ -1464,7 +1516,9 @@ export function ReportAccordion({
           {keys.map(k =>
             report[k] ? (
               <ReportSection key={k} field={k}>
-                {k === 'storytelling_pattern_analysis' ? (
+                {k === 'executive_summary' ? (
+                  <CreatorExecSummary reportText={String(report[k])} analysis={analysis} />
+                ) : k === 'storytelling_pattern_analysis' ? (
                   <StoryPatternCallout prose={report[k]} analysis={analysis} />
                 ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis', 'limitations', 'conclusion'].includes(k) ? (
                   (() => {

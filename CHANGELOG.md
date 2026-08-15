@@ -1,3 +1,8 @@
+## 3.0.27
+
+- Performance: Normal day views / Best hit + progress bars + coach notes
+- Executive summary: Crowded topics + Quiet lanes (sample-bound)
+
 ## 3.0.25
 
 - Creator copy: Average/Typical/Viral peak views; analyzed not classified;

@@ -1011,38 +1011,48 @@ export default function App() {
                                     <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                                       {formatViews(analyzeLayers.performance?.summary?.mean_views)}
                                     </dd>
+                                    <dd className="text-[11px] text-slate-400 mt-0.5">Pulled up by big hits</dd>
                                   </div>
                                   <div>
-                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Typical views</dt>
+                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Normal day views</dt>
                                     <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                                       {formatViews(analyzeLayers.performance?.summary?.median_views)}
                                     </dd>
+                                    <dd className="text-[11px] text-slate-400 mt-0.5">What a typical video sees</dd>
                                   </div>
                                 </dl>
                               </div>
                             </div>
                           )}
                           {analyzeTab === 'performance' && (
-                            <dl className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                              <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Average views</dt>
-                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.mean_views)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Typical views</dt>
-                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.median_views)}</dd>
-                              </div>
-                              <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Viral peak</dt>
-                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.max_views)}</dd>
-                              </div>
-                              {Number(analyzeLayers.performance?.summary?.mean_engagement_proxy) > 0 && (
-                                <div>
-                                  <dt className="text-sm font-medium text-slate-500 mb-1">Engagement proxy</dt>
-                                  <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{Number(analyzeLayers.performance?.summary?.mean_engagement_proxy).toLocaleString()}</dd>
-                                </div>
-                              )}
-                            </dl>
+                            <div className="grid sm:grid-cols-3 gap-3">
+                              {(() => {
+                                const mean = Number(analyzeLayers.performance?.summary?.mean_views || 0)
+                                const med = Number(analyzeLayers.performance?.summary?.median_views || 0)
+                                const mx = Number(analyzeLayers.performance?.summary?.max_views || 0)
+                                const peak = Math.max(mean, med, mx, 1)
+                                const cards = [
+                                  { label: 'Average views', value: mean, note: 'Pulled up by a few massive hits.', bar: mean / peak },
+                                  { label: 'Normal day views', value: med, note: 'Roughly where a normal video lands.', bar: med / peak, badge: 'What to expect' },
+                                  { label: 'Best hit', value: mx, note: 'Highest view count in this batch.', bar: mx / peak },
+                                ]
+                                return cards.map((c) => (
+                                  <div key={c.label} className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <div className="text-xs font-semibold text-slate-500">{c.label}</div>
+                                      {c.badge && (
+                                        <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700">{c.badge}</span>
+                                      )}
+                                    </div>
+                                    <div className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(c.value)}</div>
+                                    <div className="mt-2 h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                                      <div className="h-full rounded-full bg-gradient-to-r from-slate-700 to-slate-500" style={{ width: `${Math.round(c.bar * 100)}%` }} />
+                                    </div>
+                                    <p className="mt-2 text-[11px] text-slate-500 leading-snug">{c.note}</p>
+                                  </div>
+                                ))
+                              })()}
+                            </div>
                           )}
                           {analyzeTab === 'patterns' && (
                             <div className="space-y-3">
