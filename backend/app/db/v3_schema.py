@@ -1,4 +1,4 @@
-﻿"""V3 Phase 0–1 schema helpers: create new tables + safe ALTERs for existing DBs."""
+"""V3 Phase 0–1 schema helpers: create new tables + safe ALTERs for existing DBs."""
 from __future__ import annotations
 
 import logging
@@ -17,6 +17,7 @@ ALTERS = [
 
 
 def ensure_v3_schema() -> None:
+    # Import models so metadata is complete
     from app.db import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

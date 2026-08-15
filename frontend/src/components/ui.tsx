@@ -247,7 +247,7 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
     : { title: 'Crowded', primary: '—', secondary: 'No genre labels yet' }
 
   const open = {
-    title: 'Open',
+    title: 'Underrepresented',
     items: openItems.slice(0, 3),
     primary: openItems[0] ? `${openItems[0].label} ${openItems[0].value}` : '—',
     secondary: openItems.length > 1 ? openItems.slice(1).map((i) => `${i.label} ${i.value}`).join(' · ') : '',
@@ -325,54 +325,371 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
   }
 }
 
+
+export function StickyResearchBar({
+  question,
+  n,
+  classified,
+  onAsk,
+  onEvidence,
+  onCompare,
+}: {
+  question?: string
+  n: number
+  classified?: number
+  onAsk?: () => void
+  onEvidence?: () => void
+  onCompare?: () => void
+}) {
+  return (
+    <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50/95 backdrop-blur border-b border-slate-200/80 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas · research</div>
+          <div className="text-sm font-medium text-slate-900 truncate max-w-[28rem]">
+            {question || 'Micro-drama research'}
+          </div>
+          <div className="text-[11px] text-slate-500 tabular-nums">
+            {n} videos · {classified ?? n} classified
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {onAsk && (
+            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-900 text-white" onClick={onAsk}>
+              Ask Atlas
+            </button>
+          )}
+          {onEvidence && (
+            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white" onClick={onEvidence}>
+              Evidence
+            </button>
+          )}
+          {onCompare && (
+            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white" onClick={onCompare}>
+              Compare
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ProximityStrip({
+  pairs,
+}: {
+  pairs: { youtube_id?: string; a?: string; b?: string; title?: string; title_a?: string; title_b?: string; score?: number; shared_genre?: string; shared_trope?: string }[]
+}) {
+  if (!pairs?.length) {
+    return <p className="text-xs text-slate-400">No proximity pairs</p>
+  }
+  // Flatten to unique videos with best score for display
+  const seen = new Map<string, { id: string; title: string; score: number; tags: string }>()
+  for (const p of pairs.slice(0, 12)) {
+    for (const [id, title] of [[p.a || p.youtube_id, p.title_a || p.title], [p.b, p.title_b]] as const) {
+      if (!id) continue
+      const score = Number(p.score || 0)
+      const tags = [p.shared_genre, p.shared_trope].filter(Boolean).join(' · ')
+      const prev = seen.get(String(id))
+      if (!prev || score > prev.score) {
+        seen.set(String(id), { id: String(id), title: String(title || id), score, tags })
+      }
+    }
+  }
+  const items = Array.from(seen.values()).sort((a, b) => b.score - a.score).slice(0, 8)
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {items.map((it) => (
+        <a
+          key={it.id}
+          href={`https://www.youtube.com/watch?v=${it.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-xl border border-slate-200 overflow-hidden bg-white hover:border-slate-300 shadow-sm"
+        >
+          <div className="aspect-video bg-slate-100 relative">
+            <img
+              src={`https://i.ytimg.com/vi/${it.id}/hqdefault.jpg`}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          </div>
+          <div className="p-2">
+            <div className="text-sm font-semibold tabular-nums text-slate-900">{Math.round(it.score * 100)}%</div>
+            <div className="text-[11px] text-slate-500">similar</div>
+            <div className="text-xs text-slate-800 line-clamp-2 mt-1">{it.title}</div>
+            {it.tags && <div className="text-[10px] text-slate-500 mt-0.5">{it.tags}</div>}
+          </div>
+        </a>
+      ))}
+    </div>
+  )
+}
+
+export function PotentialMatrix({
+  signals,
+}: {
+  signals: { label?: string; genre?: string; name?: string; level?: string; note?: string; evidence?: string; representation?: string; performance?: string }[]
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-slate-500">Signal matrix in this sample only · not market validation</p>
+      <div className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-h-[200px]">
+        <div className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase font-semibold text-slate-400">Performance →</div>
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 origin-left text-[10px] uppercase font-semibold text-slate-400">Representation →</div>
+        <div className="grid grid-cols-2 gap-2 mt-4 ml-4">
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white/80 p-3 min-h-[88px]">
+            <div className="text-[10px] font-semibold text-slate-400 uppercase">Investigate</div>
+            <div className="mt-2 space-y-1">
+              {signals.filter((s) => (s.level || '').includes('invest') || (s.note || '').toLowerCase().includes('performance')).slice(0, 3).map((s, i) => (
+                <div key={i} className="text-xs font-medium text-slate-800">{s.label || s.genre || s.name}</div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 min-h-[88px]">
+            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Potential signals</div>
+            <div className="mt-2 space-y-1">
+              {signals.slice(0, 4).map((s, i) => (
+                <div key={i} className="text-xs">
+                  <span className="font-semibold text-slate-900">{s.label || s.genre || s.name}</span>
+                  <span className="text-slate-500"> · limited evidence</span>
+                </div>
+              ))}
+              {!signals.length && <div className="text-[11px] text-slate-400">None computed</div>}
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white/80 p-3 min-h-[88px]">
+            <div className="text-[10px] font-semibold text-slate-400 uppercase">Weak</div>
+            <div className="text-[11px] text-slate-500 mt-2">Low representation · low engagement in sample</div>
+          </div>
+          <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3 min-h-[88px]">
+            <div className="text-[10px] font-semibold text-amber-800 uppercase">Crowded</div>
+            <div className="text-[11px] text-slate-600 mt-2">High representation in sample</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function InsightsHero({
   n,
   classified,
   runId,
-  status,
-  title,
+  statusLabel,
+  question,
 }: {
   n: number
   classified?: number
   runId?: string | null
-  status?: string
-  title?: string
+  statusLabel?: string
+  question?: string
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6 shadow-sm">
-      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-1">Research frame</div>
-      <h2 className="text-xl font-bold text-slate-900 tracking-tight">Insights</h2>
-      <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-        Grounded · sample of <span className="font-medium text-slate-700">{n || '—'}</span>
-        {n ? ' · not a market census' : ''}
-      </p>
-      {title && <p className="text-sm text-slate-700 font-medium mt-3 border-l-4 border-atlas-600 pl-3">{title}</p>}
-      <div className="flex flex-wrap gap-2 mt-3">
-        <Badge tone="blue">{n} in sample</Badge>
-        {classified != null && <Badge>{classified} classified</Badge>}
-        {runId && <Badge tone="slate">run {String(runId).slice(0, 8)}</Badge>}
-        {status && (
-          <Badge tone={status === 'completed' ? 'green' : status === 'partial' ? 'amber' : 'slate'}>{status}</Badge>
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <span className="font-semibold text-slate-800 tabular-nums">{n}</span>
+        <span>videos</span>
+        <span className="text-slate-300">·</span>
+        <span className="tabular-nums">{classified ?? n}</span>
+        <span>classified</span>
+        {runId && (
+          <>
+            <span className="text-slate-300">·</span>
+            <span className="font-mono text-[11px]">run {String(runId).slice(0, 8)}</span>
+          </>
+        )}
+        {statusLabel && (
+          <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold uppercase">
+            {statusLabel}
+          </span>
+        )}
+      </div>
+      {question && (
+        <p className="text-sm text-slate-600 line-clamp-2">{question}</p>
+      )}
+      <p className="text-[11px] text-slate-400">Sample only · not a market census</p>
+    </div>
+  )
+}
+
+export function KeySignals({
+  items,
+  onSelect,
+  onAsk,
+}: {
+  items: { label: string; value: string; sub?: string; tone?: string; filter?: any; ask?: string }[]
+  onSelect?: (f: any) => void
+  onAsk?: (prompt: string) => void
+}) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Key findings</div>
+      <div className="grid grid-cols-3 gap-3">
+        {items.map((it) => (
+          <div
+            key={it.label}
+            className={`rounded-2xl border bg-white p-4 shadow-sm ${it.tone || 'border-slate-200'}`}
+          >
+            <button
+              type="button"
+              disabled={!it.filter || !onSelect}
+              onClick={() => it.filter && onSelect?.(it.filter)}
+              className={`w-full text-left ${it.filter ? 'cursor-pointer' : ''}`}
+            >
+              <div className="text-2xl md:text-3xl font-semibold tabular-nums text-slate-900 tracking-tight">{it.value}</div>
+              <div className="text-xs font-semibold text-slate-800 mt-1">{it.label}</div>
+              {it.sub && <div className="text-[11px] text-slate-500 mt-0.5">{it.sub}</div>}
+            </button>
+            <FindingActions
+              onEvidence={it.filter && onSelect ? () => onSelect(it.filter) : undefined}
+              onAsk={onAsk ? () => onAsk(it.ask || `Why is ${it.label} significant in this sample?`) : undefined}
+              onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in this research sample.`) : undefined}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+
+export function FindingActions({
+  onWhy,
+  onEvidence,
+  onAsk,
+}: {
+  onWhy?: () => void
+  onEvidence?: () => void
+  onAsk?: () => void
+}) {
+  const btn = 'text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-2">
+      {onWhy && <button type="button" className={btn} onClick={onWhy}>Why?</button>}
+      {onEvidence && <button type="button" className={btn} onClick={onEvidence}>Evidence</button>}
+      {onAsk && <button type="button" className={btn} onClick={onAsk}>Ask Atlas</button>}
+    </div>
+  )
+}
+
+export function BreakoutCard({
+  title,
+  views,
+  multiple,
+  tags,
+  onInvestigate,
+  onEvidence,
+}: {
+  title: string
+  views?: number | string
+  multiple?: string
+  tags?: string
+  onInvestigate?: () => void
+  onEvidence?: () => void
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm space-y-2">
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Breakout</div>
+      <div className="text-2xl font-semibold tabular-nums text-slate-900">
+        {typeof views === 'number' ? views.toLocaleString() : (views || '—')}
+      </div>
+      <div className="text-xs text-slate-500">{multiple || 'Outlier in sample'}</div>
+      <div className="text-sm font-medium text-slate-800 line-clamp-2">{title}</div>
+      {tags && <div className="text-[11px] text-slate-500">{tags}</div>}
+      <div className="flex gap-2 pt-1">
+        {onInvestigate && (
+          <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-900 text-white" onClick={onInvestigate}>
+            Investigate
+          </button>
+        )}
+        {onEvidence && (
+          <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200" onClick={onEvidence}>
+            Evidence
+          </button>
         )}
       </div>
     </div>
   )
 }
 
-export type LineageFilter = {
-  kind: 'genre' | 'trope'
-  key: string
-  count: number
-  total: number
-  claim?: string
+export function CompactStat({
+  title,
+  primary,
+  secondary,
+  rows,
+}: {
+  title: string
+  primary?: string
+  secondary?: string
+  rows?: { k: string; v: string }[]
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">{title}</div>
+      {primary && <div className="text-2xl font-semibold tabular-nums text-slate-900">{primary}</div>}
+      {secondary && <div className="text-xs text-slate-500 mt-0.5">{secondary}</div>}
+      {rows && (
+        <dl className="mt-2 space-y-1">
+          {rows.map((r) => (
+            <div key={r.k} className="flex justify-between gap-2 text-sm">
+              <dt className="text-slate-500">{r.k}</dt>
+              <dd className="font-semibold tabular-nums text-slate-900">{r.v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  )
 }
 
-type TakeawayCard = {
-  title: string
-  primary: string
-  secondary?: string
-  items?: { label: string; value: string; filter?: LineageFilter | null }[]
-  filter?: LineageFilter | null
+export function CompactActions({
+  items,
+  onAction,
+}: {
+  items: { title: string; hint?: string; actionLabel: string; id: string }[]
+  onAction?: (id: string) => void
+}) {
+  if (!items.length) return null
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Next actions</div>
+      <div className="grid md:grid-cols-3 gap-3">
+        {items.map((it, i) => (
+          <div key={it.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="text-[10px] font-semibold text-slate-400">#{i + 1}</div>
+            <div className="text-sm font-semibold text-slate-900 mt-1">{it.title}</div>
+            {it.hint && <div className="text-[11px] text-slate-500 mt-1 line-clamp-2">{it.hint}</div>}
+            <button
+              type="button"
+              className="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white"
+              onClick={() => onAction?.(it.id)}
+            >
+              {it.actionLabel}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function PredictiveLock({ have, need }: { have: number; need: number }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 flex items-center justify-between gap-3">
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Prediction</div>
+        <div className="text-sm font-semibold text-slate-800 mt-1">Not available yet</div>
+        <div className="text-[11px] text-slate-500 mt-0.5">Complete more comparable runs in this study</div>
+      </div>
+      <div className="text-right">
+        <div className="text-2xl font-semibold tabular-nums text-slate-900">{have}/{need}</div>
+        <div className="text-[11px] text-slate-500">runs</div>
+      </div>
+    </div>
+  )
 }
 
 export function TakeawayRow({
@@ -397,7 +714,7 @@ export function TakeawayRow({
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Decide</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Crowded · Underrepresented · Emerging</div>
         <div className="text-[11px] font-medium text-slate-900">Click a claim → Evidence</div>
       </div>
       <div className="grid md:grid-cols-3 gap-3">
@@ -517,7 +834,8 @@ export function GapBoard({
           </ul>
         </div>
         <div className="bg-white border border-emerald-100 rounded-3xl p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">Open</h3>
+          <h3 className="text-sm font-semibold text-slate-900 mb-1">Underrepresented</h3>
+          <p className="text-[10px] text-slate-500 mb-3">In this sample only · not market validation</p>
           <ul className="space-y-2">
             {open.length ? open.map((it, i) => (
               <li key={i} className="list-none">

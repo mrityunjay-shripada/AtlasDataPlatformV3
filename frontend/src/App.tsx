@@ -12,6 +12,7 @@ import {
 import {
   Toast, Badge, GenreChip, ConfidenceBar, BarChart, EmptyState,
   ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion,
+  KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix,
   deriveTakeaways,
   type LineageFilter,
   STAGE_COPY, ERROR_COPY, PRESET_META,
@@ -223,12 +224,15 @@ export default function App() {
   const [compareResult, setCompareResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [analyzeTab, setAnalyzeTab] = useState<'overview'|'patterns'|'performance'|'diagnostic'|'outliers'|'explore'|'proximity'|'potential'>('overview')
+  const [inspectItem, setInspectItem] = useState<any | null>(null)
+  const [memoryQ, setMemoryQ] = useState('')
   const [toast, setToast] = useState('')
   const [deliverOpen, setDeliverOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const [drawerRow, setDrawerRow] = useState<any | null>(null)
   const [evidenceFilter, setEvidenceFilter] = useState<LineageFilter | null>(null)
-  const [memoryQ, setMemoryQ] = useState('')
+  
   const [memoryAns, setMemoryAns] = useState<any>(null)
   const [memoryBusy, setMemoryBusy] = useState(false)
   const [claimsList, setClaimsList] = useState<any[]>([])
@@ -248,7 +252,14 @@ export default function App() {
     setTimeout(() => setToast(''), 3500)
   }
 
+  const focusAsk = (prompt: string) => {
+    setMemoryQ(prompt)
+    showToast('Ask Atlas ready — submit below')
+    try { document.getElementById('ask-atlas')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch {}
+  }
+
   const openLineage = async (f: LineageFilter) => {
+
     setEvidenceFilter({
       ...f,
       claim:
@@ -725,6 +736,14 @@ export default function App() {
 
                 return (
                   <>
+                    <StickyResearchBar
+                      question={status?.research_question || report?.title}
+                      n={n}
+                      classified={status?.classified_count ?? n}
+                      onAsk={() => focusAsk('What are the main findings in this research sample?')}
+                      onEvidence={() => setMode('evidence')}
+                      onCompare={() => setMode('library')}
+                    />
                     {/* 1. Frame */}
                     {status?.study_id && (
                       <p className="text-[11px] text-slate-500">
@@ -741,10 +760,40 @@ export default function App() {
                     )}
                     <InsightsHero
                       n={n}
-                      classified={status?.classified_count}
+                      classified={status?.classified_count ?? n}
                       runId={runId}
-                      status={status?.status}
-                      title={report?.title}
+                      statusLabel={status?.status}
+                      question={status?.research_question || report?.title}
+                    />
+                    <KeySignals
+                      onSelect={openLineage}
+                      onAsk={focusAsk}
+                      items={[
+                        {
+                          value: takes.crowded?.items?.[0]?.value?.split(' ')?.[0] || takes.crowded?.primary || '—',
+                          label: takes.crowded?.items?.[0]?.label || takes.crowded?.title || 'Crowded',
+                          sub: 'Crowded',
+                          tone: 'border-amber-100 bg-amber-50/40',
+                          filter: takes.crowded?.items?.[0]?.filter || takes.crowded?.filter,
+                        },
+                        {
+                          value: takes.open?.items?.[0]?.value || '0',
+                          label: takes.open?.items?.[0]?.label || 'Open',
+                          sub: 'Underrepresented',
+                          tone: 'border-emerald-100 bg-emerald-50/40',
+                          filter: takes.open?.items?.[0]?.filter || takes.open?.filter,
+                        },
+                        {
+                          value: (takes.emerging || takes.pattern)?.items?.[0]?.value?.split(' ')?.[0]
+                            || (takes.emerging || takes.pattern)?.primary || '—',
+                          label: (takes.emerging || takes.pattern)?.items?.[0]?.label
+                            || (takes.emerging || takes.pattern)?.title || 'Emerging',
+                          sub: 'Pattern',
+                          tone: 'border-slate-200',
+                          filter: (takes.emerging || takes.pattern)?.items?.[0]?.filter
+                            || (takes.emerging || takes.pattern)?.filter,
+                        },
+                      ]}
                     />
 
                     {/* 2. Decide */}
@@ -774,38 +823,142 @@ export default function App() {
                     </div>
 
                     {/* 4. Act — always visible */}
-                    {/* Phase 2 Analyze layers */}
+                    
+                    {/* Analyze workspace — one pane at a time */}
                     {analyzeLayers && (
-                      <div className="space-y-4">
-                        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Analyze</div>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Profile</h3>
-                            <p className="text-[11px] text-slate-500">{analyzeLayers.profile?.note || 'Channel contribution in sample'}</p>
-                            <ul className="text-sm space-y-1">
-                              {(analyzeLayers.profile?.channels || []).slice(0, 5).map((c: any) => (
-                                <li key={c.channel} className="flex justify-between gap-2">
-                                  <span className="truncate">{c.channel}</span>
-                                  <span className="tabular-nums text-slate-600 shrink-0">{c.videos} vids</span>
-                                </li>
-                              ))}
-                              {!analyzeLayers.profile?.channels?.length && <li className="text-slate-400 text-xs">Rebuild analysis on a completed run</li>}
-                            </ul>
+                      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                        <div className="px-4 pt-3 pb-2 border-b border-slate-100">
+                          <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Analyze</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {([
+                              ['overview', 'Overview'],
+                              ['patterns', 'Patterns'],
+                              ['performance', 'Performance'],
+                              ['diagnostic', 'Diagnostic'],
+                              ['outliers', 'Outliers'],
+                              ['explore', 'Explore'],
+                              ['proximity', 'Proximity'],
+                              ['potential', 'Potential'],
+                            ] as const).map(([id, label]) => (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => setAnalyzeTab(id)}
+                                className={`text-xs px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                                  analyzeTab === id
+                                    ? 'bg-slate-900 text-white'
+                                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
                           </div>
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Performance</h3>
-                            <p className="text-[11px] text-slate-500">Sample-only engagement proxies</p>
-                            {analyzeLayers.performance?.summary ? (
-                              <dl className="grid grid-cols-2 gap-2 text-sm">
-                                <div><dt className="text-xs text-slate-500">Mean views</dt><dd className="font-semibold tabular-nums">{Math.round(analyzeLayers.performance.summary.mean_views || 0).toLocaleString()}</dd></div>
-                                <div><dt className="text-xs text-slate-500">Median views</dt><dd className="font-semibold tabular-nums">{Math.round(analyzeLayers.performance.summary.median_views || 0).toLocaleString()}</dd></div>
-                                <div><dt className="text-xs text-slate-500">Eng. proxy</dt><dd className="font-semibold tabular-nums">{analyzeLayers.performance.summary.mean_engagement_proxy}</dd></div>
-                                <div><dt className="text-xs text-slate-500">Max views</dt><dd className="font-semibold tabular-nums">{Math.round(analyzeLayers.performance.summary.max_views || 0).toLocaleString()}</dd></div>
-                              </dl>
-                            ) : <p className="text-xs text-slate-400">No performance layer yet — re-run or rebuild claims after deploy</p>}
-                          </div>
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Diagnostic</h3>
+                        </div>
+                        <div className="p-4 space-y-3 min-h-[140px]">
+                          {analyzeTab === 'overview' && (
+                            <div className="grid md:grid-cols-2 gap-4">
+                              <div>
+                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Profile</div>
+                                <ul className="text-sm space-y-1">
+                                  {(analyzeLayers.profile?.channels || []).slice(0, 6).map((c: any) => (
+                                    <li key={c.channel} className="flex justify-between gap-2">
+                                      <span className="truncate text-slate-700">{c.channel}</span>
+                                      <span className="tabular-nums font-semibold text-slate-900">{c.videos}</span>
+                                    </li>
+                                  ))}
+                                  {!analyzeLayers.profile?.channels?.length && (
+                                    <li className="text-xs text-slate-400">Rebuild analysis on a completed run</li>
+                                  )}
+                                </ul>
+                              </div>
+                              <div>
+                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Snapshot</div>
+                                <dl className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <dt className="text-[11px] text-slate-500">Mean views</dt>
+                                    <dd className="text-xl font-semibold tabular-nums">{Math.round(analyzeLayers.performance?.summary?.mean_views || 0).toLocaleString()}</dd>
+                                  </div>
+                                  <div>
+                                    <dt className="text-[11px] text-slate-500">Median</dt>
+                                    <dd className="text-xl font-semibold tabular-nums">{Math.round(analyzeLayers.performance?.summary?.median_views || 0).toLocaleString()}</dd>
+                                  </div>
+                                </dl>
+                              </div>
+                            </div>
+                          )}
+                          {analyzeTab === 'performance' && (
+                            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div>
+                                <dt className="text-[11px] text-slate-500">Average</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.mean_views || 0).toLocaleString()}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[11px] text-slate-500">Median</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.median_views || 0).toLocaleString()}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[11px] text-slate-500">Maximum</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.max_views || 0).toLocaleString()}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[11px] text-slate-500">Eng. proxy</dt>
+                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{analyzeLayers.performance?.summary?.mean_engagement_proxy ?? 0}</dd>
+                              </div>
+                            </dl>
+                          )}
+                          {analyzeTab === 'patterns' && (
+                            <div className="space-y-3">
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-left text-[11px] uppercase text-slate-400">
+                                      <th className="pb-2 font-semibold">Pattern</th>
+                                      <th className="pb-2 font-semibold text-right">Videos</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs || []).slice(0, 12).map((p: any, i: number) => {
+                                      const label = p.label || p.pattern || `${p.genre || ''} × ${p.trope || ''}`
+                                      const count = p.count ?? p.n ?? 0
+                                      return (
+                                        <tr
+                                          key={i}
+                                          className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                                          onClick={() => setInspectItem({ type: 'pattern', label, count, raw: p })}
+                                        >
+                                          <td className="py-2 text-slate-800">{label}</td>
+                                          <td className="py-2 text-right tabular-nums font-semibold">{count || '—'}</td>
+                                        </tr>
+                                      )
+                                    })}
+                                    {!(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs)?.length && (
+                                      <tr><td colSpan={2} className="text-xs text-slate-400 py-2">No pattern pairs yet</td></tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {inspectItem?.type === 'pattern' && (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                                  <div className="flex justify-between gap-2">
+                                    <div className="text-sm font-semibold text-slate-900">{inspectItem.label}</div>
+                                    <button type="button" className="text-xs text-slate-500" onClick={() => setInspectItem(null)}>Close</button>
+                                  </div>
+                                  <div className="text-2xl font-semibold tabular-nums">{inspectItem.count} <span className="text-sm font-normal text-slate-500">videos</span></div>
+                                  <FindingActions
+                                    onWhy={() => focusAsk(`Why does the pattern ${inspectItem.label} appear in this sample?`)}
+                                    onEvidence={() => {
+                                      const trope = String(inspectItem.raw?.trope || inspectItem.label || '').split('×').pop()?.trim()
+                                      if (trope) openLineage({ kind: 'trope', key: trope.replace(/ /g, '_'), count: inspectItem.count, total: status?.collected_count || 0 })
+                                      else setMode('evidence')
+                                    }}
+                                    onAsk={() => focusAsk(`What should I investigate next about ${inspectItem.label}?`)}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {analyzeTab === 'diagnostic' && (
                             <ul className="space-y-2">
                               {(analyzeLayers.diagnostic?.flags || []).map((f: any, i: number) => (
                                 <li key={i} className="text-sm rounded-xl px-3 py-2 bg-slate-50 border border-slate-100">
@@ -813,81 +966,66 @@ export default function App() {
                                   <div className="text-slate-800">{f.message}</div>
                                 </li>
                               ))}
+                              {!analyzeLayers.diagnostic?.flags?.length && (
+                                <li className="text-xs text-slate-400">No diagnostic flags</li>
+                              )}
                             </ul>
-                          </div>
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Outliers</h3>
-                            <p className="text-[11px] text-slate-500">{analyzeLayers.outliers?.note || 'Modified z on log views'}</p>
-                            <ul className="text-sm space-y-1">
-                              {(analyzeLayers.outliers?.outliers || []).slice(0, 5).map((o: any) => (
-                                <li key={o.youtube_id} className="flex justify-between gap-2">
-                                  <span className="truncate">{o.title}</span>
-                                  <span className="tabular-nums shrink-0 text-slate-600">z {o.modified_z}</span>
-                                </li>
+                          )}
+                          {analyzeTab === 'outliers' && (
+                            <div className="grid sm:grid-cols-2 gap-3">
+                              {(Array.isArray(analyzeLayers.outliers?.items) ? analyzeLayers.outliers.items : Array.isArray(analyzeLayers.outliers) ? analyzeLayers.outliers : []).slice(0, 6).map((o: any, i: number) => (
+                                <BreakoutCard
+                                  key={i}
+                                  title={o.title || o.label || 'Video'}
+                                  views={typeof o.views === 'number' ? o.views : o.metric}
+                                  multiple={o.z != null ? `z ${o.z}` : (o.multiple || o.note || 'Sample outlier')}
+                                  tags={[o.genre, o.trope].filter(Boolean).join(' · ')}
+                                  onInvestigate={() => setInspectItem({ type: 'outlier', raw: o })}
+                                  onEvidence={() => {
+                                    if (o.genre) openLineage({ kind: 'genre', key: String(o.genre).replace(/ /g, '_'), count: 1, total: status?.collected_count || 1 })
+                                    else setMode('evidence')
+                                  }}
+                                />
                               ))}
-                              {!analyzeLayers.outliers?.outliers?.length && <li className="text-xs text-slate-400">None or n&lt;5</li>}
-                            </ul>
-                          </div>
-                        </div>
-                        {(analyzeLayers.patterns?.genre_trope_cooccurrence || []).length > 0 && (
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm">
-                            <h3 className="text-sm font-semibold text-slate-900 mb-2">Patterns · genre × trope</h3>
-                            <ul className="grid sm:grid-cols-2 gap-1 text-sm">
-                              {analyzeLayers.patterns.genre_trope_cooccurrence.slice(0, 8).map((p: any, i: number) => (
-                                <li key={i} className="flex justify-between gap-2 px-2 py-1 rounded-lg bg-slate-50">
-                                  <span className="truncate">{p.genre} × {p.trope}</span>
-                                  <span className="tabular-nums">{p.count}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        <div className="grid md:grid-cols-3 gap-4">
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Exploratory</h3>
-                            <p className="text-[11px] text-slate-500">{analyzeLayers.exploratory?.note || 'Sample slices'}</p>
-                            {analyzeLayers.exploratory?.view_bands && (
-                              <ul className="text-sm space-y-1">
-                                {Object.entries(analyzeLayers.exploratory.view_bands).map(([k, v]) => (
-                                  <li key={k} className="flex justify-between"><span>{k}</span><span className="tabular-nums">{v as any}</span></li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Proximity</h3>
-                            <p className="text-[11px] text-slate-500">{analyzeLayers.proximity?.method || 'Similar in sample'}</p>
-                            <ul className="text-sm space-y-2">
-                              {(analyzeLayers.proximity?.top_pairs || []).slice(0, 4).map((pair: any, i: number) => (
-                                <li key={i} className="text-xs leading-snug border-b border-slate-100 pb-1">
-                                  <span className="font-medium tabular-nums">{pair.score}</span>
-                                  <div className="text-slate-700 truncate">{pair.title_a}</div>
-                                  <div className="text-slate-500 truncate">↔ {pair.title_b}</div>
-                                </li>
-                              ))}
-                              {!analyzeLayers.proximity?.top_pairs?.length && <li className="text-xs text-slate-400">No pairs above threshold</li>}
-                            </ul>
-                          </div>
-                          <div className="bg-white border rounded-2xl p-4 shadow-sm space-y-2">
-                            <h3 className="text-sm font-semibold text-slate-900">Potential</h3>
-                            <p className="text-[11px] text-slate-500">Signal ≠ Opportunity</p>
-                            <div className="space-y-2">
-                              <div className="text-[10px] uppercase font-semibold text-slate-500">Signals</div>
-                              {(analyzeLayers.potential?.signals || []).slice(0, 4).map((s: any, i: number) => (
-                                <div key={i} className="text-sm rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5">{s.key} · {s.count}</div>
-                              ))}
-                              <div className="text-[10px] uppercase font-semibold text-slate-500 pt-1">Potential</div>
-                              {(analyzeLayers.potential?.potentials || []).slice(0, 3).map((s: any, i: number) => (
-                                <div key={i} className="text-xs rounded-lg bg-slate-50 border border-slate-100 px-2 py-1.5">{s.statement}</div>
-                              ))}
-                              {!analyzeLayers.potential?.signals?.length && <p className="text-xs text-slate-400">Re-run analysis after deploy</p>}
+                              {!(analyzeLayers.outliers?.items || (Array.isArray(analyzeLayers.outliers) && analyzeLayers.outliers.length)) && (
+                                <p className="text-xs text-slate-400">No outliers flagged</p>
+                              )}
                             </div>
-                          </div>
+                          )}
+                          {analyzeTab === 'explore' && (
+                            <div className="space-y-2 text-sm">
+                              {(analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins || []).map((b: any, i: number) => (
+                                <div key={i} className="flex justify-between gap-2">
+                                  <span className="text-slate-600">{b.label || b.range}</span>
+                                  <span className="font-semibold tabular-nums">{b.count ?? b.n}</span>
+                                </div>
+                              ))}
+                              {!(analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins)?.length && (
+                                <p className="text-xs text-slate-400">No exploratory buckets</p>
+                              )}
+                            </div>
+                          )}
+                          {analyzeTab === 'proximity' && (
+                            <div className="space-y-3">
+                              <p className="text-[11px] text-slate-500">{analyzeLayers.proximity?.method || 'Taxonomy + title similarity'} · sample only</p>
+                              <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
+                            </div>
+                          )}
+                          {analyzeTab === 'potential' && (
+                            <PotentialMatrix
+                              signals={
+                                analyzeLayers.potential?.potentials
+                                || analyzeLayers.potential?.signals
+                                || analyzeLayers.potential?.items
+                                || []
+                              }
+                            />
+                          )}
                         </div>
                       </div>
                     )}
 
-                    {/* Phase 6 Prescriptive */}
+{/* Phase 6 Prescriptive */}
                     {prescriptive && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
@@ -934,7 +1072,10 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Phase 7 Predictive */}
+                                          </div>
+                      </details>
+
+{/* Phase 7 Predictive */}
                     {predictive && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
@@ -1208,7 +1349,7 @@ export default function App() {
                   <input
                     className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
                     placeholder="e.g. Compare runs · Romance % · methodology · mystery signal"
-                    value={memoryQ}
+                    id="ask-atlas" value={memoryQ}
                     onChange={e => setMemoryQ(e.target.value)}
                     onKeyDown={async e => {
                       if (e.key === 'Enter' && memoryQ.trim() && !memoryBusy) {

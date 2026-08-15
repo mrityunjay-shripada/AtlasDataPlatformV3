@@ -1,3 +1,25 @@
+## 3.0.5
+
+- Sticky research context bar
+- Proximity thumbnails (YouTube hqdefault)
+- Potential signal matrix (sample-only labels)
+
+## 3.0.4
+
+- Pattern row → inspect drawer (Why / Evidence / Ask)
+- Outlier breakout cards
+- Key findings: Why? · Evidence · Ask Atlas
+
+## 3.0.3
+
+- Analyze workspace tabs (one pane)
+- Rename Open → Underrepresented (+ not market validation)
+- Key Findings / signals remain top band
+
+## 3.0.2
+
+- Beta Insights UX: Key signals strip, lean frame, Analyze/Prescriptive collapsed by default, Predictive lock card (80/20 visual bias)
+
 # Changelog
 
 ## 3.0.1
