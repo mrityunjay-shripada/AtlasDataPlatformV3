@@ -1,4 +1,4 @@
-"""V3 Phase 0–1 schema helpers: create new tables + safe ALTERs for existing DBs."""
+﻿"""V3 Phase 0–1 schema helpers: create new tables + safe ALTERs for existing DBs."""
 from __future__ import annotations
 
 import logging
@@ -17,7 +17,6 @@ ALTERS = [
 
 
 def ensure_v3_schema() -> None:
-    # Import models so metadata is complete
     from app.db import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
@@ -27,19 +26,15 @@ def ensure_v3_schema() -> None:
                 conn.execute(text(stmt))
             except Exception as e:
                 logger.warning("schema alter skipped: %s (%s)", stmt, e)
-        # indexes (best-effort)
         for stmt in (
             "CREATE INDEX IF NOT EXISTS ix_runs_study ON research_runs (study_id)",
             "CREATE INDEX IF NOT EXISTS ix_runs_corpus ON research_runs (corpus_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_run ON claims (run_id)",
             "CREATE INDEX IF NOT EXISTS ix_claims_study ON claims (study_id)",
+            "CREATE INDEX IF NOT EXISTS ix_monitors_study ON monitors (study_id)",
         ):
             try:
                 conn.execute(text(stmt))
             except Exception as e:
-                logger.warning("index skipped: %s", e)
-    try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_monitors_study ON monitors (study_id)"))
-        except Exception as e:
-            logger.warning("monitor index skipped: %s", e)
-        logger.info("V3 schema ensure complete")
+                logger.warning("index skipped: %s (%s)", stmt, e)
+    logger.info("V3 schema ensure complete")
