@@ -1,3 +1,11 @@
+## 3.0.23
+
+- Untagged card: no unknown:N leak; no Open Evidence CTA; whole card clickable; pill spacing
+
+## 3.0.22
+
+- Sticky: full research question; counts only in hero; no duplicate question line
+
 ## 3.0.21
 
 - Limitations + Conclusion use InsightCallout (same as Engagement)

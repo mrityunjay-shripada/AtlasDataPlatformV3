@@ -743,11 +743,13 @@ export function ClassificationGapNote({
   total,
   gaps,
   kind = 'trope',
+  onOpen,
 }: {
   dropped: number
   total: number
   gaps?: { label: string; count: number }[]
   kind?: string
+  onOpen?: () => void
 }) {
   if (!dropped || !total) return null
   const pct = Math.round((dropped / total) * 100)
@@ -758,28 +760,33 @@ export function ClassificationGapNote({
       : pct >= 10
         ? 'border-slate-200 bg-slate-50 text-slate-800'
         : 'border-slate-100 bg-white text-slate-600'
+  const interactive = !!onOpen
+  const Tag = interactive ? 'button' : 'div'
   return (
-    <div className={`mt-3 rounded-xl border border-slate-200/60 shadow-sm px-3.5 py-3 text-[11px] leading-snug ${tone}`}>
+    <Tag
+      type={interactive ? 'button' : undefined}
+      onClick={onOpen}
+      className={`mt-3 w-full text-left rounded-xl border border-slate-200/60 shadow-sm px-3.5 py-3 text-[11px] leading-snug transition-colors ${tone} ${
+        interactive ? 'cursor-pointer hover:bg-amber-50/95 hover:border-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200' : ''
+      }`}
+    >
       <div className="font-semibold tracking-wide uppercase text-[10px] text-slate-500">
         Review untagged data · {level}
       </div>
-      <div className="mt-1.5 text-slate-700 font-medium">
+      <p className="mt-1.5 text-slate-700 font-medium">
         About{' '}
-        <span className={`px-2 py-0.5 rounded-md font-semibold ${pct >= 25 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>
+        <span
+          className={`inline-block bg-amber-100/90 text-amber-900 px-1.5 py-0.5 rounded-md font-semibold ${
+            pct < 25 ? 'bg-slate-100 text-slate-700' : ''
+          }`}
+        >
           {pct >= 25 ? `1 in ${Math.max(2, Math.round(100 / pct))}` : `${pct}%`}
         </span>
         {' '}
-        videos ({dropped} of {total}) don’t have a clear {kind} tag yet. Untagged items aren’t ranked as story patterns.
-      </div>
-      {gaps && gaps.length > 0 && (
-        <div className="mt-1 text-slate-500">
-          {gaps.map((g) => `${g.label}: ${g.count}`).join(' · ')}
-        </div>
-      )}
-      <div className="mt-1.5 text-slate-500">
-        Open Evidence to review them — this is a labeling gap, not a story trend.
-      </div>
-    </div>
+        videos ({dropped} of {total}) don&apos;t have a clear {kind} tag yet. Untagged items aren&apos;t ranked as story patterns.
+      </p>
+      <p className="mt-1.5 text-slate-500">This is a labeling gap, not a story trend.</p>
+    </Tag>
   )
 }
 
@@ -806,15 +813,17 @@ export function StickyResearchBar({
   onEvidence?: () => void
   onCompare?: () => void
 }) {
-  const title = shortStudyTitle(question)
+  // Full research question in sticky — counts live in the hero below
+  const title = (question || '').trim() || shortStudyTitle(question)
   return (
     <div className="sticky top-0 z-20 -mx-1 px-1 py-2.5 bg-white/70 backdrop-blur-md border-b border-slate-200/60 mb-3">
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas research</div>
-        <div className="text-sm font-extrabold tracking-tight text-slate-900 truncate max-w-[36rem]">{title}</div>
-        <div className="text-[11px] text-slate-500 font-medium tabular-nums">
-          {n} videos · {classified ?? n} classified
-          {statusLabel ? ` · ${statusLabel}` : ''}
+        <div
+          className="text-sm font-extrabold tracking-tight text-slate-900 leading-snug line-clamp-2 max-w-4xl"
+          title={title}
+        >
+          {title}
         </div>
       </div>
     </div>
@@ -1027,9 +1036,6 @@ export function InsightsHero({
           </span>
         )}
       </div>
-      {question && (
-        <p className="text-[11px] text-slate-500 line-clamp-2" title={question}>{question}</p>
-      )}
       <p className="text-[11px] text-slate-400">Directional sample · not a complete market view</p>
     </div>
   )

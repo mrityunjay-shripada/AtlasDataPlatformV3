@@ -859,7 +859,7 @@ export default function App() {
                                     openLineage({ kind: 'genre', key, count, total: tot })
                                   }
                                 />
-                                <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="genre" />
+                                <ClassificationGapNote dropped={dropped} total={total || 0} kind="genre" onOpen={() => setMode('evidence')} />
                               </>
                             )
                           })()}
@@ -877,8 +877,8 @@ export default function App() {
                                     openLineage({ kind: 'trope', key, count, total: tot })
                                   }
                                 />
-                                <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="trope" />
-                                <p className="text-[11px] text-slate-400 mt-2">Untagged videos are excluded from ranking. Click a row to open matching videos.</p>
+                                <ClassificationGapNote dropped={dropped} total={total || 0} kind="trope" onOpen={() => setMode('evidence')} />
+                                <p className="text-[11px] text-slate-400 mt-2">Untagged videos are excluded from ranking. Click a bar or the gap card to inspect videos.</p>
                               </>
                             )
                           })()}
