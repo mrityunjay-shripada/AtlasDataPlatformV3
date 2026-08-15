@@ -1,3 +1,18 @@
+## 3.0.19
+
+- Prove → Evidence; clickable chart rows deep-link to filtered Evidence;
+  ← Back to research on Evidence page; never rank Other/unknown bars
+
+## 3.0.18
+
+- Declutter: no sticky Ask/Evidence/Compare; no Key findings action clusters;
+  no recommendation View-evidence spam; channel list expand control
+
+## 3.0.17
+
+- Sparse chips (never literal Signal); stronger trends empty; Ask toast click-to-focus
+- InsightCallout for overview/genre/engagement; aggressive ID strip in report prose
+
 ## 3.0.16
 
 - Analyze tabs: guided empty states, health cards, no unknown channel leak,

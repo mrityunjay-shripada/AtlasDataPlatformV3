@@ -11,7 +11,7 @@ import {
 } from './services/api'
 import {
   Toast, Badge, GenreChip, ConfidenceBar, BarChart, EmptyState,
-  ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion, StoryPatternCallout, cleanReportProse,
+  ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion, StoryPatternCallout, cleanReportProse, InsightCallout, proseToInsightCallout,
   KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix, filterChartData, ClassificationGapNote, AnalyzeEmpty, HealthCard, formatViews,
   deriveTakeaways,
   STAGE_COPY, ERROR_COPY, PRESET_META,
@@ -138,6 +138,19 @@ function SharePage({ token }: { token: string }) {
                       <ReportSection key={k} field={k}>
                       {k === 'storytelling_pattern_analysis' ? (
                         <StoryPatternCallout prose={report[k]} analysis={undefined} />
+                      ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis'].includes(k) ? (
+                        (() => {
+                          const c = proseToInsightCallout(k, String(report[k]))
+                          return (
+                            <InsightCallout
+                              kicker={c.kicker}
+                              headline={c.headline}
+                              metric={c.metric}
+                              bullets={c.bullets}
+                              footnote={c.footnote}
+                            />
+                          )
+                        })()
                       ) : (
                         <p className="text-slate-700 leading-relaxed">{cleanReportProse(String(report[k]))}</p>
                       )}
@@ -231,6 +244,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [analyzeTab, setAnalyzeTab] = useState('overview')
+  const [channelsOpen, setChannelsOpen] = useState(false)
   const [inspectItem, setInspectItem] = useState<any | null>(null)
   const [memoryQ, setMemoryQ] = useState('')
   const [toast, setToast] = useState('')
@@ -260,8 +274,12 @@ export default function App() {
 
   const focusAsk = (prompt: string) => {
     setMemoryQ(prompt)
-    showToast('Ask Atlas ready — submit below')
-    try { document.getElementById('ask-atlas')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch {}
+    showToast('Ask Atlas is ready — click to type')
+    try {
+      const el = document.getElementById('ask-atlas') as HTMLInputElement | null
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setTimeout(() => el?.focus(), 350)
+    } catch {}
   }
 
   const openLineage = async (f: LineageFilter) => {
@@ -827,14 +845,20 @@ export default function App() {
                     {/* 2. Decide */}
                     
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Prove</div>
+                      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Evidence</div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
                           {(() => {
                             const { data: genres, dropped, total, gaps } = filterChartData(aRoot.genre_distribution || {})
                             return (
                               <>
-                                <BarChart data={genres} title="Genre distribution" />
+                                <BarChart
+                                  data={genres}
+                                  title="Genre distribution"
+                                  onRowClick={(key, count, tot) =>
+                                    openLineage({ kind: 'genre', key, count, total: tot })
+                                  }
+                                />
                                 <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="genre" />
                               </>
                             )
@@ -846,9 +870,15 @@ export default function App() {
                             const { data: tropes, dropped, total, gaps } = filterChartData(aRoot.trope_distribution || {})
                             return (
                               <>
-                                <BarChart data={tropes} title="Top tropes" />
+                                <BarChart
+                                  data={tropes}
+                                  title="Top tropes"
+                                  onRowClick={(key, count, tot) =>
+                                    openLineage({ kind: 'trope', key, count, total: tot })
+                                  }
+                                />
                                 <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="trope" />
-                                <p className="text-[11px] text-slate-400 mt-2">Untagged videos are excluded from ranking. Open Evidence to inspect rows.</p>
+                                <p className="text-[11px] text-slate-400 mt-2">Untagged videos are excluded from ranking. Click a row to open matching videos.</p>
                               </>
                             )
                           })()}
@@ -901,27 +931,54 @@ export default function App() {
                                     return name && name !== 'unknown' && name !== 'n/a' && name !== 'null'
                                   })
                                   const nVid = status?.collected_count || status?.classified_count || 0
-                                  if (!channels.length) {
+                                  // Prefer profile channels; else derive from dataset records if available
+                                  let list = channels
+                                  if (!list.length && dataset?.records?.length) {
+                                    const m: Record<string, number> = {}
+                                    for (const r of dataset.records) {
+                                      const ch = String(r.channel_title || r.channel || '').trim()
+                                      if (!ch || ch.toLowerCase() === 'unknown') continue
+                                      m[ch] = (m[ch] || 0) + 1
+                                    }
+                                    list = Object.entries(m)
+                                      .map(([channel, videos]) => ({ channel, videos }))
+                                      .sort((a, b) => b.videos - a.videos)
+                                  }
+                                  if (!list.length) {
                                     return (
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-base font-medium text-slate-500 italic">Channel mix not summarized</span>
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+                                        onClick={() => setMode('evidence')}
+                                      >
+                                        View videos in Evidence
                                         {nVid > 0 && (
-                                          <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                                            {nVid} videos
-                                          </span>
+                                          <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">{nVid}</span>
                                         )}
-                                      </div>
+                                      </button>
                                     )
                                   }
                                   return (
-                                    <ul className="text-sm space-y-1.5">
-                                      {channels.slice(0, 6).map((c: any) => (
-                                        <li key={c.channel || c.name} className="flex justify-between gap-2">
-                                          <span className="truncate text-slate-700">{c.channel || c.name}</span>
-                                          <span className="tabular-nums font-semibold text-slate-900">{c.videos ?? c.count}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
+                                    <div className="space-y-2">
+                                      <button
+                                        type="button"
+                                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 shadow-sm"
+                                        onClick={() => setChannelsOpen((o) => !o)}
+                                      >
+                                        {channelsOpen ? 'Hide channels' : `View ${list.length} channel${list.length === 1 ? '' : 's'}`}
+                                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">{nVid || list.reduce((s, c) => s + Number(c.videos ?? c.count || 0), 0)} videos</span>
+                                      </button>
+                                      {channelsOpen && (
+                                        <ul className="text-sm space-y-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200/60 bg-slate-50/80 p-3">
+                                          {list.slice(0, 40).map((c: any) => (
+                                            <li key={c.channel || c.name} className="flex justify-between gap-2">
+                                              <span className="truncate text-slate-700">{c.channel || c.name}</span>
+                                              <span className="tabular-nums font-semibold text-slate-900">{c.videos ?? c.count}</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
                                   )
                                 })()}
                               </div>
@@ -1109,7 +1166,7 @@ export default function App() {
                           <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Recommended actions</div>
                           <span className="text-[11px] text-slate-500">{prescriptive.status}</span>
                         </div>
-                        <p className="text-xs text-slate-500">{prescriptive.note || prescriptive.message}</p>
+                        <p className="text-xs text-slate-500">{prescriptive.status === 'ok' ? (prescriptive.note || '') : (prescriptive.message || '')}</p>
                         <div className="space-y-3">
                           {(prescriptive.recommendations || []).map((r: any) => (
                             <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-2">
@@ -1118,28 +1175,7 @@ export default function App() {
                                 <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{String(r.priority || '').toLowerCase() === 'high' ? 'High priority' : String(r.priority || '').toLowerCase() === 'medium' ? 'Medium priority' : String(r.priority || '').toLowerCase() === 'low' ? 'Low priority' : r.priority}</span>
                               </div>
                               <p className="text-sm text-slate-700 leading-relaxed">{r.action}</p>
-                              <div className="flex flex-wrap gap-2">
-                                {(r.claim_ids || []).slice(0, 6).map((cid: string) => (
-                                  <button
-                                    key={cid}
-                                    type="button"
-                                    className="text-[11px] font-mono px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50"
-                                    onClick={async () => {
-                                      try {
-                                        const detail = await getClaim(cid)
-                                        setActiveClaim(detail)
-                                        setEvidenceFilter(null)
-                                        setMode('evidence')
-                                        showToast('Opened the evidence behind this recommendation')
-                                      } catch (e: any) {
-                                        setError(e.message)
-                                      }
-                                    }}
-                                  >
-                                    View evidence
-                                  </button>
-                                ))}
-                              </div>
+                              
                             </div>
                           ))}
                           {!prescriptive.recommendations?.length && (
@@ -1157,10 +1193,19 @@ export default function App() {
                           <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Trends</div>
                           <span className="text-[11px] font-medium text-slate-800">{predictive.status}</span>
                         </div>
-                        <p className="text-sm text-slate-700">{predictive.message}</p>
+                        {predictive.status !== 'insufficient_data' && predictive.message && (
+                          <p className="text-sm text-slate-700">{predictive.message}</p>
+                        )}
                         {predictive.status === 'insufficient_data' && (
-                          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                            More data needed for trends. We need about {predictive.min_required} complete batches on this study (you have {predictive.observation_count}). Run Next batch, then check back here.
+                          <div className="px-5 py-4 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl text-center">
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              <strong className="text-slate-900 font-bold mr-1">More data needed for trends.</strong>
+                              We need about {predictive.min_required} complete batches on this study
+                              <span className="inline-block bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded-md mx-1 shadow-sm">
+                                (you have {predictive.observation_count})
+                              </span>
+                              Run Next batch, then check back here.
+                            </p>
                           </div>
                         )}
                         {predictive.status === 'ok' && (
@@ -1242,6 +1287,13 @@ export default function App() {
           {/* EVIDENCE */}
           {mode === 'evidence' && (
             <div className="space-y-4">
+              <button
+                type="button"
+                onClick={() => setMode('insights')}
+                className="text-sm font-semibold text-slate-500 hover:text-slate-900 transition-colors inline-flex items-center gap-1.5"
+              >
+                <span aria-hidden="true">←</span> Back to research
+              </button>
               <div className="flex flex-wrap justify-between gap-3 items-end">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Evidence</h2>
@@ -1646,7 +1698,20 @@ export default function App() {
       </nav>
 
       <Drawer open={!!drawerRow} onClose={() => setDrawerRow(null)} row={drawerRow} />
-      <Toast message={toast} onClose={() => setToast('')} />
+      <Toast
+        message={toast}
+        onClose={() => setToast('')}
+        onAction={
+          toast.toLowerCase().includes('ask atlas')
+            ? () => {
+                setToast('')
+                const el = document.getElementById('ask-atlas') as HTMLInputElement | null
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                setTimeout(() => el?.focus(), 300)
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }

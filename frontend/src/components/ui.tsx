@@ -8,11 +8,25 @@ export type LineageFilter = {
   claim?: string
 }
 
-export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+export function Toast({
+  message,
+  onClose,
+  onAction,
+}: {
+  message: string
+  onClose: () => void
+  onAction?: () => void
+}) {
   if (!message) return null
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm bg-slate-900 text-white text-sm px-4 py-3 rounded-xl shadow-lg flex items-start gap-3">
-      <span className="flex-1 leading-snug">{message}</span>
+      {onAction ? (
+        <button type="button" className="flex-1 text-left leading-snug hover:underline" onClick={onAction}>
+          {message}
+        </button>
+      ) : (
+        <span className="flex-1 leading-snug">{message}</span>
+      )}
       <button type="button" className="text-slate-400 hover:text-white text-lg leading-none" onClick={onClose} aria-label="Dismiss">
         ×
       </button>
@@ -81,27 +95,47 @@ const BAR_TONES = [
   'from-slate-500 to-slate-400',
 ]
 
-export function BarChart({ data, title }: { data: Record<string, number>; title: string }) {
-  const entries = Object.entries(data || {}).sort((a, b) => b[1] - a[1]).slice(0, 8)
-  const rest = Object.entries(data || {}).sort((a, b) => b[1] - a[1]).slice(8)
-  const other = rest.reduce((s, [, v]) => s + v, 0)
-  const rows = other ? [...entries, ['other', other] as [string, number]] : entries
-  const max = Math.max(...rows.map(([, v]) => v), 1)
-  const total = Object.values(data || {}).reduce((a, b) => a + b, 0) || 1
-  if (!rows.length) return null
+export function BarChart({
+  data,
+  title,
+  onRowClick,
+}: {
+  data: Record<string, number>
+  title: string
+  onRowClick?: (key: string, count: number, total: number) => void
+}) {
+  // Rank only real labels — never promote unknown/other into the bar list
+  const cleaned = Object.entries(data || {}).filter(
+    ([k]) => !['unknown', 'other', 'n/a', 'null', ''].includes(String(k).toLowerCase().trim()),
+  )
+  const entries = cleaned.sort((a, b) => b[1] - a[1]).slice(0, 10)
+  const max = Math.max(...entries.map(([, v]) => v), 1)
+  const total = cleaned.reduce((a, [, b]) => a + b, 0) || 1
+  if (!entries.length) return null
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h4 className="text-sm font-semibold text-slate-900 tracking-tight">{title}</h4>
         <span className="text-[11px] text-slate-400 font-medium">{total} labeled</span>
       </div>
-      <div className="space-y-2.5">
-        {rows.map(([k, v], i) => {
+      <div className="space-y-1">
+        {entries.map(([k, v], i) => {
           const pct = Math.round((v / total) * 100)
+          const interactive = !!onRowClick
+          const RowTag = interactive ? 'button' : 'div'
           return (
-            <div key={k} className="group">
+            <RowTag
+              key={k}
+              type={interactive ? 'button' : undefined}
+              onClick={interactive ? () => onRowClick!(String(k), Number(v), total) : undefined}
+              className={`group w-full text-left rounded-lg px-2 py-1.5 -mx-2 transition-colors ${
+                interactive
+                  ? 'cursor-pointer hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300'
+                  : ''
+              }`}
+            >
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-xs font-medium text-slate-700 capitalize truncate" title={k}>
+                <span className={`text-xs font-medium capitalize truncate ${interactive ? 'text-slate-800 group-hover:text-slate-950' : 'text-slate-700'}`} title={k}>
                   {String(k).replace(/_/g, ' ')}
                 </span>
                 <span className="text-[11px] tabular-nums text-slate-500 shrink-0">
@@ -115,14 +149,13 @@ export function BarChart({ data, title }: { data: Record<string, number>; title:
                   style={{ width: `${(v / max) * 100}%` }}
                 />
               </div>
-            </div>
+            </RowTag>
           )
         })}
       </div>
     </div>
   )
 }
-
 
 export function formatViews(n: number | null | undefined): string {
   const v = Number(n) || 0
@@ -221,10 +254,11 @@ const REPORT_META: Record<string, { label: string; accent: string; icon: string 
 export function cleanReportProse(text: string): string {
   if (!text) return ''
   return String(text)
-    .replace(/\b[0-9A-Za-z_-]{11}\b/g, (m) => {
+    .replace(/\(\s*ID\s*:\s*[^)]*\)/gi, '')
+    .replace(/\bID\s*:\s*[0-9A-Za-z_-]*/gi, '')
+    .replace(/\b[0-9A-Za-z_-]{10,12}\b/g, (m) => {
       const hasDigit = /\d/.test(m)
       const hasLetter = /[A-Za-z]/.test(m)
-      // YouTube ids mix letters/digits; keep pure words
       return hasDigit && hasLetter ? '' : m
     })
     .replace(/\(\s*\)/g, '')
@@ -252,6 +286,86 @@ const GENRE_DOT: Record<string, string> = {
   mystery: 'bg-indigo-400',
   drama: 'bg-violet-400',
   default: 'bg-slate-400',
+}
+
+
+export function InsightCallout({
+  kicker,
+  headline,
+  metric,
+  bullets,
+  footnote,
+}: {
+  kicker?: string
+  headline: string
+  metric?: string
+  bullets: string[]
+  footnote?: string
+}) {
+  const dots = ['bg-pink-400', 'bg-violet-400', 'bg-amber-400', 'bg-sky-400', 'bg-slate-400']
+  return (
+    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 shadow-sm">
+      {kicker && (
+        <div className="text-[11px] font-extrabold tracking-tight text-slate-500 uppercase mb-1">{kicker}</div>
+      )}
+      <p className="text-base md:text-lg font-medium text-slate-900 leading-snug">
+        {headline}
+        {metric && (
+          <>
+            {' '}
+            <span className="inline-flex items-center bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold text-sm tabular-nums">
+              {metric}
+            </span>
+          </>
+        )}
+      </p>
+      {footnote && <p className="text-[11px] text-slate-500 mt-1">{footnote}</p>}
+      {bullets.length > 0 && (
+        <ul className="mt-4 space-y-3 text-sm">
+          {bullets.map((b, i) => (
+            <li key={i} className="flex items-start gap-2.5">
+              <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${dots[i % dots.length]}`} />
+              <p className="text-slate-600 leading-relaxed">{b}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** Build a simple callout from free prose when structured JSON is not available. */
+export function proseToInsightCallout(field: string, prose: string): {
+  kicker: string
+  headline: string
+  metric?: string
+  bullets: string[]
+  footnote?: string
+} {
+  const cleaned = cleanReportProse(prose)
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20)
+  const meta: Record<string, string> = {
+    dataset_overview: 'Dataset overview',
+    genre_analysis: 'Genre analysis',
+    engagement_analysis: 'Engagement',
+    storytelling_pattern_analysis: 'Storytelling patterns',
+  }
+  const kicker = meta[field] || field.replace(/_/g, ' ')
+  const headline = sentences[0] || cleaned.slice(0, 120) || 'Summary for this set of videos.'
+  // pull first percentage as metric if present
+  const m = cleaned.match(/(\d+(?:\.\d+)?)\s*%/)
+  const metric = m ? `${m[1]}%` : undefined
+  const bullets = sentences.slice(1, 5)
+  return {
+    kicker,
+    headline: metric ? headline.replace(m![0], '').replace(/\s{2,}/g, ' ').trim() : headline,
+    metric,
+    bullets: bullets.length ? bullets : sentences.slice(0, 3),
+    footnote: 'In this set of videos only.',
+  }
 }
 
 export function StoryPatternCallout({
@@ -613,9 +727,6 @@ export function StickyResearchBar({
   n,
   classified,
   statusLabel,
-  onAsk,
-  onEvidence,
-  onCompare,
 }: {
   question?: string
   n: number
@@ -628,31 +739,12 @@ export function StickyResearchBar({
   const title = shortStudyTitle(question)
   return (
     <div className="sticky top-0 z-20 -mx-1 px-1 py-2.5 bg-white/70 backdrop-blur-md border-b border-slate-200/60 mb-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas research</div>
-          <div className="text-sm font-extrabold tracking-tight text-slate-900 truncate max-w-[28rem]">{title}</div>
-          <div className="text-[11px] text-slate-500 font-medium tabular-nums">
-            {n} videos · {classified ?? n} classified
-            {statusLabel ? ` · ${statusLabel}` : ''}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {onAsk && (
-            <button type="button" className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800 transition-colors" onClick={onAsk}>
-              Ask Atlas
-            </button>
-          )}
-          {onEvidence && (
-            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white" onClick={onEvidence}>
-              Evidence
-            </button>
-          )}
-          {onCompare && (
-            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-slate-200 bg-white" onClick={onCompare}>
-              Compare
-            </button>
-          )}
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas research</div>
+        <div className="text-sm font-extrabold tracking-tight text-slate-900 truncate max-w-[36rem]">{title}</div>
+        <div className="text-[11px] text-slate-500 font-medium tabular-nums">
+          {n} videos · {classified ?? n} classified
+          {statusLabel ? ` · ${statusLabel}` : ''}
         </div>
       </div>
     </div>
@@ -715,47 +807,83 @@ export function ProximityStrip({
 export function PotentialMatrix({
   signals,
 }: {
-  signals: { label?: string; genre?: string; name?: string; level?: string; note?: string; evidence?: string; representation?: string; performance?: string }[]
+  signals: { label?: string; genre?: string; name?: string; level?: string; note?: string; evidence?: string; representation?: string; performance?: string; theme?: string; trope?: string; title?: string; signal?: string; key?: string; code?: string }[]
 }) {
   const list = signals || []
-  const nameOf = (s: any) => s.label || s.genre || s.name || 'Signal'
-  const sparse = list.filter((s) => {
+  const nameOf = (s: any): string | null => {
+    const raw =
+      s.label || s.genre || s.name || s.theme || s.trope || s.title || s.signal || s.key || s.code || ''
+    const n = String(raw).trim()
+    if (!n || /^signal$/i.test(n) || n === '—' || n === '-') return null
+    if (/^(unknown|other|n\/a)$/i.test(n)) return null
+    return n.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+  }
+  const withNames = list.map((s) => ({ s, name: nameOf(s) })).filter((x) => !!x.name)
+  const sparse = withNames.filter(({ s }) => {
     const l = `${s.level || ''} ${s.note || ''} ${s.representation || ''}`.toLowerCase()
-    return l.includes('sparse') || l.includes('potential') || l.includes('under') || l.includes('open')
-  }).slice(0, 4)
-  const sat = list.filter((s) => {
+    return !l.trim() || l.includes('sparse') || l.includes('potential') || l.includes('under') || l.includes('open') || l.includes('white')
+  })
+  const sat = withNames.filter(({ s }) => {
     const l = `${s.level || ''} ${s.note || ''}`.toLowerCase()
     return l.includes('crowd') || l.includes('saturat') || l.includes('high')
-  }).slice(0, 3)
-  const weak = list.filter((s) => {
+  })
+  const weak = withNames.filter(({ s }) => {
     const l = `${s.level || ''} ${s.note || ''} ${s.performance || ''}`.toLowerCase()
     return l.includes('weak') || l.includes('low')
-  }).slice(0, 3)
+  })
+  const sparseItems = (sparse.length ? sparse : withNames).slice(0, 6).map((x) => x.name!)
+  const satItems = sat.slice(0, 4).map((x) => x.name!)
+  const weakItems = weak.slice(0, 4).map((x) => x.name!)
+
+  const Chip = ({ label, tone }: { label: string; tone: 'emerald' | 'amber' | 'slate' }) => {
+    const cls =
+      tone === 'emerald'
+        ? 'bg-emerald-100/80 text-emerald-800 border-emerald-200/60'
+        : tone === 'amber'
+          ? 'bg-amber-100/80 text-amber-900 border-amber-200/60'
+          : 'bg-slate-100 text-slate-700 border-slate-200/60'
+    return (
+      <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold border shadow-sm ${cls}`}>
+        {label}
+      </span>
+    )
+  }
 
   const Cell = ({
     title,
     tone,
     items,
     empty,
+    chipTone,
   }: {
     title: string
     tone: string
     items: string[]
     empty: string
+    chipTone: 'emerald' | 'amber' | 'slate'
   }) => (
     <div className={`rounded-xl border p-3 min-h-[100px] ${tone}`}>
       <div className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{title}</div>
       {items.length ? (
-        <ul className="mt-2 space-y-1.5">
+        <div className="mt-3 flex flex-wrap gap-2">
           {items.map((x, i) => (
-            <li key={i} className="text-sm font-medium text-slate-800">· {x}</li>
+            <Chip key={i} label={x} tone={chipTone} />
           ))}
-        </ul>
+        </div>
       ) : (
         <p className="mt-2 text-[12px] text-slate-500 leading-snug">{empty}</p>
       )}
     </div>
   )
+
+  if (!withNames.length) {
+    return (
+      <AnalyzeEmpty
+        title="No sparse themes flagged yet"
+        body="When genres or tropes barely appear in this set, they will show up here as chips — not as market opportunities."
+      />
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -765,27 +893,31 @@ export function PotentialMatrix({
       <div className="grid grid-cols-2 gap-2">
         <Cell
           title="Open questions"
-          tone="border-dashed border-slate-200 bg-white"
+          tone="border-2 border-dashed border-slate-300 bg-slate-50/80"
           items={[]}
           empty="Nothing parked here yet — sparse themes land on the right when we find them."
+          chipTone="slate"
         />
         <Cell
           title="Sparse areas"
           tone="border-emerald-100 bg-emerald-50/60"
-          items={sparse.map(nameOf)}
+          items={sparseItems}
           empty="No sparse themes flagged in this set."
+          chipTone="emerald"
         />
         <Cell
           title="Low traction"
           tone="border-slate-200 bg-slate-50/80"
-          items={weak.map(nameOf)}
+          items={weakItems}
           empty="No low-traction themes called out."
+          chipTone="slate"
         />
         <Cell
           title="Saturated"
           tone="border-amber-100 bg-amber-50/70"
-          items={sat.map(nameOf)}
+          items={satItems}
           empty="No saturation flags beyond the top genres above."
+          chipTone="amber"
         />
       </div>
     </div>
@@ -933,12 +1065,7 @@ export function KeySignals({
                   <div className="text-[11px] text-slate-500 font-medium mt-0.5 leading-snug">{it.sub}</div>
                 )}
               </button>
-              <FindingActions
-                onEvidence={interactive ? () => onSelect!(it.filter) : (onSelect && isGap ? () => onSelect({ kind: 'genre', key: '_gap', count: 0, total: 0 } as any) : undefined)}
-                onAsk={onAsk ? () => onAsk(it.ask || `Why does ${it.label} matter in this set of videos?`) : undefined}
-                onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in plain language for this research.`) : undefined}
-              />
-            </div>
+</div>
           )
         })}
       </div>
@@ -1269,6 +1396,19 @@ export function ReportAccordion({
               <ReportSection key={k} field={k}>
                 {k === 'storytelling_pattern_analysis' ? (
                   <StoryPatternCallout prose={report[k]} analysis={analysis} />
+                ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis'].includes(k) ? (
+                  (() => {
+                    const c = proseToInsightCallout(k, String(report[k]))
+                    return (
+                      <InsightCallout
+                        kicker={c.kicker}
+                        headline={c.headline}
+                        metric={c.metric}
+                        bullets={c.bullets}
+                        footnote={c.footnote}
+                      />
+                    )
+                  })()
                 ) : (
                   <p className="text-slate-700 leading-relaxed">{cleanReportProse(String(report[k]))}</p>
                 )}
