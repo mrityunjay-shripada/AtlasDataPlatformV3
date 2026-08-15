@@ -24,6 +24,36 @@ from app.config import get_settings as _gs
 
 logger = logging.getLogger(__name__)
 
+def _record_observation_snapshot(run, analysis: dict, stats: dict | None = None) -> None:
+    """Append a sample snapshot so batch expansions count as observations for pulse/predictive.
+
+    Next batch mutates the same ResearchRun; without snapshots, predictive always saw 1 run.
+    """
+    plan = dict(run.plan_json or {})
+    obs = list(plan.get("observations") or [])
+    genres = (analysis or {}).get("genre_distribution") or {}
+    total = sum(int(v) for v in genres.values()) or 1
+    top = max(genres.items(), key=lambda x: int(x[1])) if genres else ("—", 0)
+    eng = (analysis or {}).get("engagement_stats") or ((analysis or {}).get("performance") or {}).get("summary") or {}
+    batch_index = int(plan.get("batch_index") or 1)
+    obs = [o for o in obs if int(o.get("batch_index") or 0) != batch_index]
+    obs.append({
+        "batch_index": batch_index,
+        "n": int(run.collected_count or 0),
+        "completed_at": datetime.utcnow().isoformat() + "Z",
+        "top_genre": top[0],
+        "top_genre_share": round(int(top[1]) / total, 4),
+        "genre_distribution": genres,
+        "mean_views": eng.get("mean_views"),
+        "run_kind": getattr(run, "run_kind", None) or "seed",
+        "run_id": run.id,
+    })
+    obs.sort(key=lambda o: int(o.get("batch_index") or 0))
+    plan["observations"] = obs
+    run.plan_json = plan
+
+
+
 ACTIVE = {"queued", "planning", "collecting", "cleaning", "classifying", "analyzing", "generating_report"}
 LEASE_STALE_SECONDS = 120
 WORKER_ID = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex[:6]}"

@@ -515,47 +515,6 @@ export function InsightsHero({
   )
 }
 
-export function KeySignals({
-  items,
-  onSelect,
-  onAsk,
-}: {
-  items: { label: string; value: string; sub?: string; tone?: string; filter?: any; ask?: string }[]
-  onSelect?: (f: any) => void
-  onAsk?: (prompt: string) => void
-}) {
-  return (
-    <div>
-      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Key findings</div>
-      <div className="grid grid-cols-3 gap-3">
-        {items.map((it) => (
-          <div
-            key={it.label}
-            className={`rounded-2xl border bg-white p-4 shadow-sm ${it.tone || 'border-slate-200'}`}
-          >
-            <button
-              type="button"
-              disabled={!it.filter || !onSelect}
-              onClick={() => it.filter && onSelect?.(it.filter)}
-              className={`w-full text-left ${it.filter ? 'cursor-pointer' : ''}`}
-            >
-              <div className="text-2xl md:text-3xl font-semibold tabular-nums text-slate-900 tracking-tight">{it.value}</div>
-              <div className="text-xs font-semibold text-slate-800 mt-1">{it.label}</div>
-              {it.sub && <div className="text-[11px] text-slate-500 mt-0.5">{it.sub}</div>}
-            </button>
-            <FindingActions
-              onEvidence={it.filter && onSelect ? () => onSelect(it.filter) : undefined}
-              onAsk={onAsk ? () => onAsk(it.ask || `Why is ${it.label} significant in this sample?`) : undefined}
-              onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in this research sample.`) : undefined}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-
 export function FindingActions({
   onWhy,
   onEvidence,
@@ -614,6 +573,47 @@ export function BreakoutCard({
     </div>
   )
 }
+
+export function KeySignals({
+  items,
+  onSelect,
+  onAsk,
+}: {
+  items: { label: string; value: string; sub?: string; tone?: string; filter?: any; ask?: string }[]
+  onSelect?: (f: any) => void
+  onAsk?: (prompt: string) => void
+}) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Key findings</div>
+      <div className="grid grid-cols-3 gap-3">
+        {items.map((it) => (
+          <div
+            key={it.label}
+            className={`rounded-2xl border bg-white p-4 shadow-sm ${it.tone || 'border-slate-200'}`}
+          >
+            <button
+              type="button"
+              disabled={!it.filter || !onSelect}
+              onClick={() => it.filter && onSelect?.(it.filter)}
+              className={`w-full text-left ${it.filter ? 'cursor-pointer' : ''}`}
+            >
+              <div className="text-2xl md:text-3xl font-semibold tabular-nums text-slate-900 tracking-tight">{it.value}</div>
+              <div className="text-xs font-semibold text-slate-800 mt-1">{it.label}</div>
+              {it.sub && <div className="text-[11px] text-slate-500 mt-0.5">{it.sub}</div>}
+            </button>
+            <FindingActions
+              onEvidence={it.filter && onSelect ? () => onSelect(it.filter) : undefined}
+              onAsk={onAsk ? () => onAsk(it.ask || `Why is ${it.label} significant in this sample?`) : undefined}
+              onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in this research sample.`) : undefined}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 
 export function CompactStat({
   title,
@@ -817,7 +817,7 @@ export function GapBoard({
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Crowded vs open</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Crowded vs underrepresented</div>
         <div className="text-[11px] font-medium text-slate-900">Click a row → Evidence</div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">

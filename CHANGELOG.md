@@ -1,3 +1,14 @@
+## 3.0.7
+
+- Predictive/Pulse: count Next-batch **snapshots** as observations (not only run rows)
+- Record observation snapshot on each successful run completion
+- Fix misleading copy that implied Next batch alone unlocked predictive without snapshots
+- Honest message when pre-snapshot batches cannot be reconstructed
+
+## 3.0.6
+
+- Fix Vercel build: remove orphan `</details>` in Insights JSX
+
 ## 3.0.5
 
 - Sticky research context bar

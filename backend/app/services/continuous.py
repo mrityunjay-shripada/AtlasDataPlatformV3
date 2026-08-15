@@ -21,6 +21,50 @@ from app.services.study_service import attach_run_to_study, ensure_default_study
 logger = logging.getLogger(__name__)
 
 
+
+def collect_study_observations(db: Session, study_id: str) -> list[dict]:
+    """Observations = completed runs, plus per-batch snapshots on each run (Next batch)."""
+    runs = list_study_runs(db, study_id)
+    series: list[dict] = []
+    for r in runs:
+        plan = r.plan_json or {}
+        snaps = list(plan.get("observations") or [])
+        if snaps:
+            for o in snaps:
+                series.append({
+                    "run_id": r.id,
+                    "run_kind": o.get("run_kind") or getattr(r, "run_kind", None) or "seed",
+                    "batch_index": o.get("batch_index"),
+                    "n": o.get("n") or r.collected_count,
+                    "completed_at": o.get("completed_at"),
+                    "top_genre": o.get("top_genre"),
+                    "top_genre_share": o.get("top_genre_share"),
+                    "mean_views": o.get("mean_views"),
+                    "source": "batch_snapshot",
+                })
+        else:
+            a = r.analysis_json or {}
+            genres = a.get("genre_distribution") or {}
+            total = sum(int(v) for v in genres.values()) or 1
+            top = max(genres.items(), key=lambda x: int(x[1])) if genres else ("—", 0)
+            eng = (a.get("performance") or {}).get("summary") or a.get("engagement_stats") or {}
+            series.append({
+                "run_id": r.id,
+                "run_kind": getattr(r, "run_kind", None) or "seed",
+                "batch_index": (plan.get("batch_index") or 1),
+                "n": r.collected_count,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                "top_genre": top[0],
+                "top_genre_share": round(int(top[1]) / total, 4),
+                "mean_views": eng.get("mean_views"),
+                "mean_engagement_proxy": eng.get("mean_engagement_proxy"),
+                "source": "run",
+            })
+    # stable order
+    series.sort(key=lambda x: (str(x.get("completed_at") or ""), int(x.get("batch_index") or 0)))
+    return series
+
+
 def list_study_runs(db: Session, study_id: str) -> list[ResearchRun]:
     return (
         db.query(ResearchRun)
@@ -32,16 +76,27 @@ def list_study_runs(db: Session, study_id: str) -> list[ResearchRun]:
 
 def build_pulse(db: Session, study_id: str) -> dict[str, Any]:
     runs = list_study_runs(db, study_id)
-    if len(runs) < 2:
+    observations = collect_study_observations(db, study_id)
+    if len(observations) < 2 and len(runs) < 2:
         return {
             "status": "insufficient_data",
             "message": (
-                "Pulse needs at least two completed runs in this research study "
-                "(e.g. seed + Next batch, or Refresh)."
+                "Pulse needs at least two sample observations in this study. "
+                "Next batch now records a snapshot each time it completes; or start another run on the same study."
             ),
             "observation_count": len(runs),
             "runs": [{"run_id": r.id, "n": r.collected_count, "completed_at": r.completed_at, "run_kind": getattr(r, "run_kind", None)} for r in runs],
             "series": [],
+        }
+
+    if observations and len(observations) >= 2:
+        return {
+            "status": "ok",
+            "message": f"Pulse across {len(observations)} observations (runs and/or Next-batch snapshots).",
+            "observation_count": len(observations),
+            "runs": observations,
+            "series": observations,
+            "note": "Batch snapshots are successive samples on the same run — descriptive, not a market forecast.",
         }
 
     series = []

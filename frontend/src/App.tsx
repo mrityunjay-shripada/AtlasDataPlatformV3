@@ -1073,7 +1073,7 @@ export default function App() {
                     )}
 
                                           </div>
-                      </details>
+                      
 
 {/* Phase 7 Predictive */}
                     {predictive && (
