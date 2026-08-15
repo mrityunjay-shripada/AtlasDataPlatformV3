@@ -1,3 +1,12 @@
+## 3.0.25
+
+- Creator copy: Average/Typical/Viral peak views; analyzed not classified;
+  no run hash in hero; Based on this batch; sparse themes listed; topic empty state
+
+## 3.0.24
+
+- Channel rows clickable → Evidence pre-filtered by channel (hover row, no extra buttons)
+
 ## 3.0.23
 
 - Untagged card: no unknown:N leak; no Open Evidence CTA; whole card clickable; pill spacing

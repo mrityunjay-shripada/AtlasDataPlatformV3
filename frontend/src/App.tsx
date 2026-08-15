@@ -311,6 +311,10 @@ export default function App() {
     if (!f) return true
     const norm = (s: any) => String(s || '').toLowerCase().replace(/ /g, '_')
     if (f.kind === 'genre') return norm(r.genre) === norm(f.key)
+    if (f.kind === 'channel') {
+      const ch = String(r.channel_title || r.channel || '').trim().toLowerCase()
+      return ch === String(f.key).trim().toLowerCase()
+    }
     return norm(r.trope) === norm(f.key)
   }
 
@@ -668,7 +672,7 @@ export default function App() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-500">Collected</div><div className="text-lg font-semibold">{status?.collected_count ?? 0}</div></div>
-                    <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-500">Classified</div><div className="text-lg font-semibold">{status?.classified_count ?? 0}{status?.target_records ? <span className="text-xs text-slate-400 font-normal"> / {status.target_records}</span> : null}</div></div>
+                    <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-500">Analyzed</div><div className="text-lg font-semibold">{status?.classified_count ?? 0}{status?.target_records ? <span className="text-xs text-slate-400 font-normal"> / {status.target_records}</span> : null}</div></div>
                     <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-500">Cache hits</div><div className="text-lg font-semibold">{status?.cache?.classification_hits ?? 0}</div></div>
                     <div className="bg-slate-50 rounded-xl p-3"><div className="text-xs text-slate-500">Progress</div><div className="text-lg font-semibold">{progressPct}%</div></div>
                   </div>
@@ -969,13 +973,30 @@ export default function App() {
                                         <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full tabular-nums">{nVid || list.reduce((s, c) => s + Number((c.videos ?? c.count) || 0), 0)} videos</span>
                                       </button>
                                       {channelsOpen && (
-                                        <ul className="text-sm space-y-1.5 max-h-48 overflow-y-auto rounded-xl border border-slate-200/60 bg-slate-50/80 p-3">
-                                          {list.slice(0, 40).map((c: any) => (
-                                            <li key={c.channel || c.name} className="flex justify-between gap-2">
-                                              <span className="truncate text-slate-700">{c.channel || c.name}</span>
-                                              <span className="tabular-nums font-semibold text-slate-900">{c.videos ?? c.count}</span>
-                                            </li>
-                                          ))}
+                                        <ul className="text-sm max-h-56 overflow-y-auto rounded-xl border border-slate-200/60 bg-slate-50/80 p-1.5">
+                                          {list.slice(0, 40).map((c: any) => {
+                                            const name = c.channel || c.name
+                                            const count = Number(c.videos ?? c.count ?? 0)
+                                            return (
+                                              <li key={name}>
+                                                <button
+                                                  type="button"
+                                                  className="w-full flex justify-between gap-2 items-center rounded-lg px-2.5 py-1.5 text-left cursor-pointer hover:bg-white transition-colors"
+                                                  onClick={() =>
+                                                    openLineage({
+                                                      kind: 'channel',
+                                                      key: String(name),
+                                                      count,
+                                                      total: nVid || list.reduce((s: number, x: any) => s + Number(x.videos ?? x.count || 0), 0),
+                                                    })
+                                                  }
+                                                >
+                                                  <span className="truncate text-slate-800 font-medium">{name}</span>
+                                                  <span className="tabular-nums font-semibold text-slate-900 shrink-0">{count}</span>
+                                                </button>
+                                              </li>
+                                            )
+                                          })}
                                         </ul>
                                       )}
                                     </div>
@@ -986,13 +1007,13 @@ export default function App() {
                                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">Current view</div>
                                 <dl className="flex flex-wrap items-baseline gap-10">
                                   <div>
-                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Mean views</dt>
+                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Average views</dt>
                                     <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                                       {formatViews(analyzeLayers.performance?.summary?.mean_views)}
                                     </dd>
                                   </div>
                                   <div>
-                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Median</dt>
+                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Typical views</dt>
                                     <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
                                       {formatViews(analyzeLayers.performance?.summary?.median_views)}
                                     </dd>
@@ -1004,15 +1025,15 @@ export default function App() {
                           {analyzeTab === 'performance' && (
                             <dl className="grid grid-cols-2 md:grid-cols-3 gap-6">
                               <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Average</dt>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Average views</dt>
                                 <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.mean_views)}</dd>
                               </div>
                               <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Median</dt>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Typical views</dt>
                                 <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.median_views)}</dd>
                               </div>
                               <div>
-                                <dt className="text-sm font-medium text-slate-500 mb-1">Maximum</dt>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Viral peak</dt>
                                 <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.max_views)}</dd>
                               </div>
                               {Number(analyzeLayers.performance?.summary?.mean_engagement_proxy) > 0 && (
@@ -1085,7 +1106,26 @@ export default function App() {
                                     cards.push({ tone: 'amber', title: 'High concentration', body: msg })
                                   } else if (code.includes('under') || /underrepresentation/i.test(msg)) {
                                     const n = msg.match(/(\d+)/)?.[1] || 'some'
-                                    cards.push({ tone: 'slate', title: 'Sparse themes', body: `We found ${n} theme(s) that barely appear in this set — rare here, not proof of opportunity.` })
+                                    // try extract theme names from message
+                                    const themeBits = msg.match(/(?:genres?|themes?|signals?)[:\s]+([^.]+)/i)
+                                    let themes = ''
+                                    if (themeBits) {
+                                      themes = themeBits[1].replace(/\s+and\s+/gi, ', ').trim()
+                                    }
+                                    // also pull from analysis whitespace if present
+                                    const ws = (analyzeLayers?.diagnostic?.whitespace || analyzeLayers?.patterns?.sparse || []) as any[]
+                                    const names = (Array.isArray(ws) ? ws : [])
+                                      .map((x: any) => x.genre || x.label || x.theme || x)
+                                      .filter(Boolean)
+                                      .slice(0, 4)
+                                      .map((s: any) => String(s).replace(/_/g, ' '))
+                                    const listed = names.length
+                                      ? names.join(', ')
+                                      : themes
+                                    const body = listed
+                                      ? `We found ${n} theme(s) that barely appear in this set: ${listed}. Rare here — not proof of demand.`
+                                      : `We found ${n} theme(s) that barely appear in this set. Rare here — not proof of demand.`
+                                    cards.push({ tone: 'slate', title: 'Sparse themes', body })
                                   } else {
                                     cards.push({ tone: 'slate', title: String(f.code || 'Note').replace(/_/g, ' '), body: msg })
                                   }
@@ -1137,11 +1177,13 @@ export default function App() {
                           )}
                           {analyzeTab === 'proximity' && (
                             <div className="space-y-3">
-                              <p className="text-[11px] text-slate-500 font-medium">Matched by topic and title · this set only</p>
                               {(analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []).length ? (
-                                <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
+                                <>
+                                  <p className="text-[11px] text-slate-500 font-medium">Similar titles and topics in this batch</p>
+                                  <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
+                                </>
                               ) : (
-                                <AnalyzeEmpty title="No topic matches yet" body="Similar videos will show here when we can match titles and topics in this set." actionLabel="Open Evidence" onAction={() => setMode('evidence')} />
+                                <AnalyzeEmpty title="No topic clusters formed yet" body="Analyze more videos to reveal intersecting themes." />
                               )}
                             </div>
                           )}
@@ -1342,7 +1384,9 @@ export default function App() {
                               <div className="text-xs text-slate-600 mt-1 font-mono">
                                 {evidenceFilter.kind === 'genre'
                                   ? `count(genre = ${evidenceFilter.key}) / n = ${evidenceFilter.count} / ${evidenceFilter.total}`
-                                  : `count(trope = ${evidenceFilter.key}) / n = ${evidenceFilter.count} / ${evidenceFilter.total}`}
+                                  : evidenceFilter.kind === 'channel'
+                                    ? `videos from channel “${evidenceFilter.key}” = ${evidenceFilter.count}`
+                                    : `count(trope = ${evidenceFilter.key}) / n = ${evidenceFilter.count} / ${evidenceFilter.total}`}
                                 {' = '}
                                 {evidenceFilter.total
                                   ? `${Math.round((evidenceFilter.count / evidenceFilter.total) * 100)}%`

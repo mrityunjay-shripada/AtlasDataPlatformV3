@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 export type LineageFilter = {
-  kind: 'genre' | 'trope'
+  kind: 'genre' | 'trope' | 'channel'
   key: string
   count: number
   total: number
@@ -1023,20 +1023,14 @@ export function InsightsHero({
         <span>videos</span>
         <span className="text-slate-300">·</span>
         <span className="tabular-nums font-medium text-slate-800">{classified ?? n}</span>
-        <span>classified</span>
-        {runId && (
-          <>
-            <span className="text-slate-300">·</span>
-            <span className="font-mono text-[11px]">run {String(runId).slice(0, 8)}</span>
-          </>
-        )}
+        <span>analyzed</span>
         {statusLabel && (
           <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold uppercase">
             {statusLabel}
           </span>
         )}
       </div>
-      <p className="text-[11px] text-slate-400">Directional sample · not a complete market view</p>
+      <p className="text-[11px] text-slate-400">Based on this batch</p>
     </div>
   )
 }
