@@ -14,9 +14,9 @@ import {
   ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion,
   KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix,
   deriveTakeaways,
-  type LineageFilter,
   STAGE_COPY, ERROR_COPY, PRESET_META,
 } from './components/ui'
+import type { LineageFilter } from './components/ui'
 
 
 
@@ -224,7 +224,7 @@ export default function App() {
   const [compareResult, setCompareResult] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [analyzeTab, setAnalyzeTab] = useState<'overview'|'patterns'|'performance'|'diagnostic'|'outliers'|'explore'|'proximity'|'potential'>('overview')
+  const [analyzeTab, setAnalyzeTab] = useState('overview')
   const [inspectItem, setInspectItem] = useState<any | null>(null)
   const [memoryQ, setMemoryQ] = useState('')
   const [toast, setToast] = useState('')
@@ -1072,8 +1072,6 @@ export default function App() {
                       </div>
                     )}
 
-                                          </div>
-                      
 
 {/* Phase 7 Predictive */}
                     {predictive && (
@@ -1085,8 +1083,7 @@ export default function App() {
                         <p className="text-sm text-slate-700">{predictive.message}</p>
                         {predictive.status === 'insufficient_data' && (
                           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                            Need {predictive.min_required} completed runs in this study
-                            (have {predictive.observation_count}). Use Next batch or Refresh, then reopen Insights.
+                            Need {predictive.min_required} sample observations (have {predictive.observation_count}). Complete more Next batches after snapshotting is enabled, or more runs on this study.
                           </div>
                         )}
                         {predictive.status === 'ok' && (

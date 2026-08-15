@@ -1,3 +1,11 @@
+## 3.0.9
+
+- Fix Vercel JSX: remove stray `</div>` before Predictive section
+
+## 3.0.8b
+
+- Vercel: separate `import type { LineageFilter }` for Vite/Rollup
+
 ## 3.0.8
 
 - Fix Vercel build: export missing `LineageFilter` type from ui.tsx
