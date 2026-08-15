@@ -231,7 +231,7 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
       if (!seen.has(key)) {
         seen.add(key)
         const count = g[m[1].replace(/ /g, '_')] ?? g[m[1]] ?? 0
-        openItems.push({ label: label.charAt(0).toUpperCase() + label.slice(1), value: String(count) })
+        openItems.push({ label: label.charAt(0).toUpperCase() + label.slice(1), value: `${count} of ${total}` })
       }
     }
   }
@@ -241,18 +241,18 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
       const count = Number(g[name] ?? 0)
       if (count === 0 && !seen.has(name)) {
         seen.add(name)
-        openItems.push({ label: name.charAt(0).toUpperCase() + name.slice(1), value: '0' })
+        openItems.push({ label: name.charAt(0).toUpperCase() + name.slice(1), value: `0 of ${total}` })
       }
     }
   }
 
   const crowded = topG
     ? {
-        title: 'Crowded',
+        title: 'High share',
         primary: `${String(topG[0]).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} ${Math.round((Number(topG[1]) / total) * 100)}%`,
         secondary: `${topG[1]} of ${total}`,
       }
-    : { title: 'Crowded', primary: '—', secondary: 'No genre labels yet' }
+    : { title: 'High share', primary: '—', secondary: 'No genre labels yet' }
 
   const open = {
     title: 'Underrepresented',
@@ -292,15 +292,27 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
   const crowdedFull = topG
     ? {
         ...crowded,
+        items: [{
+          label: String(topG[0]).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          value: `${Math.round((Number(topG[1]) / total) * 100)}%`,
+          filter: { kind: 'genre' as const, key: String(topG[0]), count: Number(topG[1]), total },
+        }],
+        secondary: `${topG[1]} of ${total}`,
         filter: { kind: 'genre' as const, key: String(topG[0]), count: Number(topG[1]), total },
       }
-    : { ...crowded, filter: null as any }
+    : { ...crowded, items: [], filter: null as any }
   const emergingFull = topT
     ? {
         ...emerging,
+        items: [{
+          label: String(topT[0]).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          value: `${Math.round((Number(topT[1]) / total) * 100)}%`,
+          filter: { kind: 'trope' as const, key: String(topT[0]), count: Number(topT[1]), total },
+        }],
+        secondary: `${topT[1]} of ${total}`,
         filter: { kind: 'trope' as const, key: String(topT[0]), count: Number(topT[1]), total },
       }
-    : { ...emerging, filter: null as any }
+    : { ...emerging, items: [], filter: null as any }
   const openFull = {
     ...open,
     items: openItems.slice(0, 3).map((it) => ({
@@ -334,10 +346,81 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
 }
 
 
+export function filterChartData(data: Record<string, number> | undefined | null, drop: string[] = ['unknown', 'other']) {
+  const out: Record<string, number> = {}
+  let dropped = 0
+  const gaps: { label: string; count: number }[] = []
+  let total = 0
+  for (const [k, v] of Object.entries(data || {})) {
+    const n = Number(v) || 0
+    total += n
+    const key = String(k).toLowerCase().replace(/ /g, '_')
+    if (drop.includes(key)) {
+      dropped += n
+      gaps.push({ label: String(k).replace(/_/g, ' '), count: n })
+      continue
+    }
+    out[k] = n
+  }
+  const gapShare = total > 0 ? dropped / total : 0
+  return { data: out, dropped, total, gapShare, gaps }
+}
+
+/** Callout when unknown/other is material — data quality, not a story trope. */
+export function ClassificationGapNote({
+  dropped,
+  total,
+  gaps,
+  kind = 'trope',
+}: {
+  dropped: number
+  total: number
+  gaps?: { label: string; count: number }[]
+  kind?: string
+}) {
+  if (!dropped || !total) return null
+  const pct = Math.round((dropped / total) * 100)
+  const level = pct >= 25 ? 'High' : pct >= 10 ? 'Moderate' : 'Low'
+  const tone =
+    pct >= 25
+      ? 'border-amber-200 bg-amber-50/80 text-amber-950'
+      : pct >= 10
+        ? 'border-slate-200 bg-slate-50 text-slate-800'
+        : 'border-slate-100 bg-white text-slate-600'
+  return (
+    <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-snug ${tone}`}>
+      <div className="font-semibold tracking-wide uppercase text-[10px] opacity-80">
+        Classification coverage · {level}
+      </div>
+      <div className="mt-1 font-medium">
+        {dropped} of {total} ({pct}%) {kind} labels are unknown/other — not ranked as storytelling patterns.
+      </div>
+      {gaps && gaps.length > 0 && (
+        <div className="mt-1 opacity-80">
+          {gaps.map((g) => `${g.label}: ${g.count}`).join(' · ')}
+        </div>
+      )}
+      <div className="mt-1 opacity-70">
+        Treat as a method gap (reclassify / review queue), not as an “Unknown” trope insight.
+      </div>
+    </div>
+  )
+}
+
+export function shortStudyTitle(question?: string) {
+  const q = (question || '').trim()
+  if (!q) return 'Micro-drama research'
+  const lower = q.toLowerCase()
+  if (lower.includes('micro-drama') || lower.includes('micro drama')) return 'YouTube micro-drama patterns'
+  if (q.length <= 48) return q
+  return q.slice(0, 46).trim() + '…'
+}
+
 export function StickyResearchBar({
   question,
   n,
   classified,
+  statusLabel,
   onAsk,
   onEvidence,
   onCompare,
@@ -345,20 +428,21 @@ export function StickyResearchBar({
   question?: string
   n: number
   classified?: number
+  statusLabel?: string
   onAsk?: () => void
   onEvidence?: () => void
   onCompare?: () => void
 }) {
+  const title = shortStudyTitle(question)
   return (
     <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50/95 backdrop-blur border-b border-slate-200/80 mb-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas · research</div>
-          <div className="text-sm font-medium text-slate-900 truncate max-w-[28rem]">
-            {question || 'Micro-drama research'}
-          </div>
+          <div className="text-sm font-semibold text-slate-900 truncate max-w-[28rem]">{title}</div>
           <div className="text-[11px] text-slate-500 tabular-nums">
             {n} videos · {classified ?? n} classified
+            {statusLabel ? ` · ${statusLabel}` : ''}
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -496,12 +580,12 @@ export function InsightsHero({
   question?: string
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        <span className="font-semibold text-slate-800 tabular-nums">{n}</span>
+        <span className="font-semibold text-slate-900 tabular-nums">{n}</span>
         <span>videos</span>
         <span className="text-slate-300">·</span>
-        <span className="tabular-nums">{classified ?? n}</span>
+        <span className="tabular-nums font-medium text-slate-800">{classified ?? n}</span>
         <span>classified</span>
         {runId && (
           <>
@@ -516,7 +600,7 @@ export function InsightsHero({
         )}
       </div>
       {question && (
-        <p className="text-sm text-slate-600 line-clamp-2">{question}</p>
+        <p className="text-[11px] text-slate-500 line-clamp-2" title={question}>{question}</p>
       )}
       <p className="text-[11px] text-slate-400">Sample only · not a market census</p>
     </div>
@@ -594,7 +678,7 @@ export function KeySignals({
   return (
     <div>
       <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Key findings</div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${items.length >= 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
         {items.map((it) => (
           <div
             key={it.label}

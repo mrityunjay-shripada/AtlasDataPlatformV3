@@ -12,7 +12,7 @@ import {
 import {
   Toast, Badge, GenreChip, ConfidenceBar, BarChart, EmptyState,
   ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion,
-  KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix,
+  KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix, filterChartData, ClassificationGapNote,
   deriveTakeaways,
   STAGE_COPY, ERROR_COPY, PRESET_META,
 } from './components/ui'
@@ -765,59 +765,87 @@ export default function App() {
                       statusLabel={status?.status}
                       question={status?.research_question || report?.title}
                     />
-                    <KeySignals
-                      onSelect={openLineage}
-                      onAsk={focusAsk}
-                      items={[
+                    {(() => {
+                      const tropeGap = filterChartData(aRoot.trope_distribution || {})
+                      const genreGap = filterChartData(aRoot.genre_distribution || {})
+                      const gap = tropeGap.gapShare >= genreGap.gapShare ? tropeGap : genreGap
+                      const gapKind = tropeGap.gapShare >= genreGap.gapShare ? 'trope' : 'genre'
+                      const base = [
                         {
-                          value: takes.crowded?.items?.[0]?.value?.split(' ')?.[0] || takes.crowded?.primary || '—',
-                          label: takes.crowded?.items?.[0]?.label || takes.crowded?.title || 'Crowded',
-                          sub: 'Crowded',
+                          value: takes.crowded?.items?.[0]?.value || takes.crowded?.primary || '—',
+                          label: takes.crowded?.items?.[0]?.label || '—',
+                          sub: takes.crowded?.secondary || 'High share in sample',
                           tone: 'border-amber-100 bg-amber-50/40',
                           filter: takes.crowded?.items?.[0]?.filter || takes.crowded?.filter,
+                          ask: `Why is ${takes.crowded?.items?.[0]?.label || 'this genre'} concentrated in this sample?`,
                         },
                         {
                           value: takes.open?.items?.[0]?.value || '0',
-                          label: takes.open?.items?.[0]?.label || 'Open',
-                          sub: 'Underrepresented',
+                          label: takes.open?.items?.[0]?.label || '—',
+                          sub: 'Underrepresented in sample',
                           tone: 'border-emerald-100 bg-emerald-50/40',
                           filter: takes.open?.items?.[0]?.filter || takes.open?.filter,
+                          ask: `What does underrepresentation of ${takes.open?.items?.[0]?.label || 'this genre'} mean here?`,
                         },
                         {
-                          value: (takes.emerging || takes.pattern)?.items?.[0]?.value?.split(' ')?.[0]
+                          value: (takes.emerging || takes.pattern)?.items?.[0]?.value
                             || (takes.emerging || takes.pattern)?.primary || '—',
-                          label: (takes.emerging || takes.pattern)?.items?.[0]?.label
-                            || (takes.emerging || takes.pattern)?.title || 'Emerging',
-                          sub: 'Pattern',
+                          label: (takes.emerging || takes.pattern)?.items?.[0]?.label || '—',
+                          sub: (takes.emerging || takes.pattern)?.secondary || 'Top trope in sample',
                           tone: 'border-slate-200',
                           filter: (takes.emerging || takes.pattern)?.items?.[0]?.filter
                             || (takes.emerging || takes.pattern)?.filter,
+                          ask: `Why is ${(takes.emerging || takes.pattern)?.items?.[0]?.label || 'this trope'} common in this sample?`,
                         },
-                      ]}
-                    />
+                      ]
+                      if (gap.gapShare >= 0.25 && gap.dropped > 0) {
+                        const pct = Math.round(gap.gapShare * 100)
+                        base.push({
+                          value: `${pct}%`,
+                          label: 'Unclassified',
+                          sub: `${gap.dropped} of ${gap.total} ${gapKind} labels · coverage gap`,
+                          tone: 'border-amber-200 bg-amber-50/60',
+                          filter: undefined as any,
+                          ask: `Why are ${pct}% of ${gapKind} labels unknown/other in this sample, and how should we improve classification?`,
+                        })
+                      }
+                      return (
+                        <KeySignals
+                          onSelect={openLineage}
+                          onAsk={focusAsk}
+                          items={base}
+                        />
+                      )
+                    })()}
 
                     {/* 2. Decide */}
-                    <TakeawayRow crowded={takes.crowded} open={takes.open} emerging={takes.emerging} onSelect={openLineage} />
-
-                    {/* 3. Prove */}
-                    <GapBoard
-                      n={n}
-                      crowdedChips={takes.crowdedChips}
-                      openChips={takes.openChips}
-                      saturation={aRoot.saturation_notes || []}
-                      whitespace={aRoot.whitespace_opportunities || []}
-                      onSelect={openLineage}
-                    />
+                    
                     <div>
                       <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Prove</div>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
-                          <BarChart data={aRoot.genre_distribution || {}} title="Genre distribution" />
+                          {(() => {
+                            const { data: genres, dropped, total, gaps } = filterChartData(aRoot.genre_distribution || {})
+                            return (
+                              <>
+                                <BarChart data={genres} title="Genre distribution" />
+                                <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="genre" />
+                              </>
+                            )
+                          })()}
                           <p className="text-[11px] text-slate-400 mt-3">Share of labeled videos in this sample only.</p>
                         </div>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
-                          <BarChart data={aRoot.trope_distribution || {}} title="Top tropes" />
-                          <p className="text-[11px] text-slate-400 mt-3">Open Evidence to inspect the underlying rows.</p>
+                          {(() => {
+                            const { data: tropes, dropped, total, gaps } = filterChartData(aRoot.trope_distribution || {})
+                            return (
+                              <>
+                                <BarChart data={tropes} title="Top tropes" />
+                                <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="trope" />
+                                <p className="text-[11px] text-slate-400 mt-2">Ranked tropes only · Open Evidence for rows.</p>
+                              </>
+                            )
+                          })()}
                         </div>
                       </div>
                     </div>

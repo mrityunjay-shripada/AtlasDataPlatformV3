@@ -1,3 +1,18 @@
+## 3.0.12
+
+- Key findings: 4th card when unknown/other ≥25% (Unclassified · coverage gap)
+
+## 3.0.11
+
+- Unknown/other: not ranked as tropes; shown as Classification coverage signal (High/Moderate/Low) when material
+
+## 3.0.10
+
+- Insights: single Key findings band (removed duplicate Decide + Gap board)
+- Sticky: short study title; full question secondary
+- Top tropes: hide unknown/other; footnote for unclassified count
+- Finding cards: genre/trope as label, no double Crowded
+
 ## 3.0.9
 
 - Fix Vercel JSX: remove stray `</div>` before Predictive section
