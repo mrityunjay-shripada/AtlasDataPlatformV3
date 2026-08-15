@@ -987,7 +987,7 @@ export default function App() {
                                                       kind: 'channel',
                                                       key: String(name),
                                                       count,
-                                                      total: nVid || list.reduce((s: number, x: any) => s + Number(x.videos ?? x.count || 0), 0),
+                                                      total: nVid || list.reduce((s: number, x: any) => s + Number((x.videos ?? x.count ) || 0), 0),
                                                     })
                                                   }
                                                 >
