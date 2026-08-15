@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react'
 
+export type LineageFilter = {
+  kind: 'genre' | 'trope'
+  key: string
+  count: number
+  total: number
+  claim?: string
+}
+
 export function Toast({ message, onClose }: { message: string; onClose: () => void }) {
   if (!message) return null
   return (
@@ -413,7 +421,7 @@ export function ProximityStrip({
               alt=""
               className="w-full h-full object-cover"
               loading="lazy"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onError={(e) => { const el = e.currentTarget; el.style.display = 'none' }}
             />
           </div>
           <div className="p-2">

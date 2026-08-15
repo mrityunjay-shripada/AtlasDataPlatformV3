@@ -1,3 +1,7 @@
+## 3.0.8
+
+- Fix Vercel build: export missing `LineageFilter` type from ui.tsx
+
 ## 3.0.7
 
 - Predictive/Pulse: count Next-batch **snapshots** as observations (not only run rows)
