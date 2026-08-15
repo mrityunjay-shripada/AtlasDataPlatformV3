@@ -1,3 +1,13 @@
+## 3.0.16
+
+- Analyze tabs: guided empty states, health cards, no unknown channel leak,
+  format views, hide eng.proxy when 0, sparse matrix empty cells
+
+## 3.0.15
+
+- StoryPatternCallout: soft structured pairings (no blue wall, no raw video IDs)
+- cleanReportProse strips YouTube-like ids from report sections
+
 ## 3.0.14
 
 - Visual hierarchy: frosted sticky, Key findings hover/contrast, amber pill on untagged %,

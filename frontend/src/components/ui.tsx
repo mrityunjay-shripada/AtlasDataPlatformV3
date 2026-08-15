@@ -123,6 +123,74 @@ export function BarChart({ data, title }: { data: Record<string, number>; title:
   )
 }
 
+
+export function formatViews(n: number | null | undefined): string {
+  const v = Number(n) || 0
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1)}M`
+  if (v >= 10_000) return `${Math.round(v / 1000)}K`
+  return v.toLocaleString()
+}
+
+export function AnalyzeEmpty({
+  title,
+  body,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  body: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-10 px-4 rounded-xl border border-dashed border-slate-200/80 bg-slate-50/50 min-h-[120px]">
+      <div className="text-sm font-extrabold tracking-tight text-slate-800">{title}</div>
+      <p className="text-[13px] text-slate-500 font-medium mt-1.5 max-w-sm leading-relaxed">{body}</p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function HealthCard({
+  tone = 'amber',
+  title,
+  body,
+}: {
+  tone?: 'amber' | 'slate' | 'blue'
+  title: string
+  body: string
+}) {
+  const map = {
+    amber: 'bg-amber-50 border-amber-200/80 text-amber-950',
+    slate: 'bg-slate-50 border-slate-200/80 text-slate-900',
+    blue: 'bg-slate-50 border-slate-200 text-slate-900',
+  }
+  const titleC = {
+    amber: 'text-amber-900',
+    slate: 'text-slate-900',
+    blue: 'text-slate-900',
+  }
+  const bodyC = {
+    amber: 'text-amber-900/90',
+    slate: 'text-slate-600',
+    blue: 'text-slate-600',
+  }
+  return (
+    <div className={`rounded-xl border p-4 shadow-sm ${map[tone]}`}>
+      <h5 className={`text-sm font-extrabold tracking-tight ${titleC[tone]}`}>{title}</h5>
+      <p className={`text-sm mt-1 leading-relaxed ${bodyC[tone]}`}>{body}</p>
+    </div>
+  )
+}
+
 export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="text-center py-16 px-6 rounded-3xl border border-dashed border-slate-200 bg-gradient-to-b from-slate-50 to-white">
@@ -147,6 +215,125 @@ const REPORT_META: Record<string, { label: string; accent: string; icon: string 
   conclusion: { label: 'Conclusion', accent: 'border-l-indigo-600', icon: '★' },
   executive_summary: { label: 'Executive summary', accent: 'border-l-atlas-600', icon: '◆' },
 }
+
+
+/** Strip YouTube-like video ids from narrative report text. */
+export function cleanReportProse(text: string): string {
+  if (!text) return ''
+  return String(text)
+    .replace(/\b[0-9A-Za-z_-]{11}\b/g, (m) => {
+      const hasDigit = /\d/.test(m)
+      const hasLetter = /[A-Za-z]/.test(m)
+      // YouTube ids mix letters/digits; keep pure words
+      return hasDigit && hasLetter ? '' : m
+    })
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s+—\s+/g, ' — ')
+    .trim()
+}
+
+function sentenceBullets(text: string, max = 4): string[] {
+  const cleaned = cleanReportProse(text)
+  const parts = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 28 && !/^[0-9%.\s]+$/.test(s))
+  return parts.slice(0, max)
+}
+
+const GENRE_DOT: Record<string, string> = {
+  romance: 'bg-pink-400',
+  comedy: 'bg-amber-400',
+  thriller: 'bg-slate-800',
+  revenge: 'bg-orange-500',
+  family: 'bg-sky-400',
+  mystery: 'bg-indigo-400',
+  drama: 'bg-violet-400',
+  default: 'bg-slate-400',
+}
+
+export function StoryPatternCallout({
+  prose,
+  analysis,
+}: {
+  prose?: string
+  analysis?: any
+}) {
+  const root = analysis?.analysis || analysis || {}
+  const tropes = root.trope_distribution || {}
+  const genres = root.genre_distribution || {}
+  const total =
+    Object.values(genres as Record<string, number>).reduce((s, v) => s + Number(v), 0) ||
+    Object.values(tropes as Record<string, number>).reduce((s, v) => s + Number(v), 0) ||
+    1
+  const topTrope = Object.entries(tropes as Record<string, number>)
+    .filter(([k]) => !['unknown', 'other'].includes(String(k).toLowerCase()))
+    .sort((a, b) => Number(b[1]) - Number(a[1]))[0]
+  const topGenre = Object.entries(genres as Record<string, number>).sort(
+    (a, b) => Number(b[1]) - Number(a[1]),
+  )[0]
+  const pct = topTrope ? Math.round((Number(topTrope[1]) / total) * 1000) / 10 : null
+  const tropeLabel = topTrope
+    ? String(topTrope[0]).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : null
+  const genreLabel = topGenre
+    ? String(topGenre[0]).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    : null
+
+  const bullets = sentenceBullets(prose || '', 4)
+  // Prefer short bullets that mention genres when possible
+  const dots = ['romance', 'thriller', 'comedy', 'revenge', 'family']
+
+  return (
+    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-5 shadow-sm">
+      <div className="mb-4">
+        <h4 className="text-[11px] font-extrabold tracking-tight text-slate-500 uppercase mb-1">
+          What shows up together
+        </h4>
+        <p className="text-base md:text-lg font-medium text-slate-900 leading-snug">
+          {genreLabel && tropeLabel ? (
+            <>
+              {genreLabel} and {tropeLabel} often appear together
+              {pct != null && (
+                <>
+                  {' '}
+                  <span className="inline-flex items-center bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md font-bold text-sm tabular-nums">
+                    {pct}%
+                  </span>
+                  {' '}
+                  of this set
+                </>
+              )}
+              .
+            </>
+          ) : (
+            <>Common pairings in this set of videos.</>
+          )}
+        </p>
+        <p className="text-[11px] text-slate-500 mt-1">In this set of videos only — not a market forecast.</p>
+      </div>
+      {bullets.length > 0 ? (
+        <ul className="space-y-3 text-sm">
+          {bullets.map((b, i) => {
+            const lower = b.toLowerCase()
+            const g = dots.find((d) => lower.includes(d)) || 'default'
+            return (
+              <li key={i} className="flex items-start gap-2.5">
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${GENRE_DOT[g] || GENRE_DOT.default}`} />
+                <p className="text-slate-600 leading-relaxed">{b}</p>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-600 leading-relaxed">{cleanReportProse(prose || 'No pairing narrative yet.')}</p>
+      )}
+    </div>
+  )
+}
+
 
 export function ReportSection({ field, children }: { field: string; children: ReactNode }) {
   const meta = REPORT_META[field] || {
@@ -530,42 +717,76 @@ export function PotentialMatrix({
 }: {
   signals: { label?: string; genre?: string; name?: string; level?: string; note?: string; evidence?: string; representation?: string; performance?: string }[]
 }) {
+  const list = signals || []
+  const nameOf = (s: any) => s.label || s.genre || s.name || 'Signal'
+  const sparse = list.filter((s) => {
+    const l = `${s.level || ''} ${s.note || ''} ${s.representation || ''}`.toLowerCase()
+    return l.includes('sparse') || l.includes('potential') || l.includes('under') || l.includes('open')
+  }).slice(0, 4)
+  const sat = list.filter((s) => {
+    const l = `${s.level || ''} ${s.note || ''}`.toLowerCase()
+    return l.includes('crowd') || l.includes('saturat') || l.includes('high')
+  }).slice(0, 3)
+  const weak = list.filter((s) => {
+    const l = `${s.level || ''} ${s.note || ''} ${s.performance || ''}`.toLowerCase()
+    return l.includes('weak') || l.includes('low')
+  }).slice(0, 3)
+
+  const Cell = ({
+    title,
+    tone,
+    items,
+    empty,
+  }: {
+    title: string
+    tone: string
+    items: string[]
+    empty: string
+  }) => (
+    <div className={`rounded-xl border p-3 min-h-[100px] ${tone}`}>
+      <div className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{title}</div>
+      {items.length ? (
+        <ul className="mt-2 space-y-1.5">
+          {items.map((x, i) => (
+            <li key={i} className="text-sm font-medium text-slate-800">· {x}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-[12px] text-slate-500 leading-snug">{empty}</p>
+      )}
+    </div>
+  )
+
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-slate-500">Emerging signals based on current data · not proof of demand</p>
-      <div className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-h-[200px]">
-        <div className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase font-semibold text-slate-400">Performance →</div>
-        <div className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 origin-left text-[10px] uppercase font-semibold text-slate-400">Representation →</div>
-        <div className="grid grid-cols-2 gap-2 mt-4 ml-4">
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white/80 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase">Open questions</div>
-            <div className="mt-2 space-y-1">
-              {signals.filter((s) => (s.level || '').includes('invest') || (s.note || '').toLowerCase().includes('performance')).slice(0, 3).map((s, i) => (
-                <div key={i} className="text-xs font-medium text-slate-800">{s.label || s.genre || s.name}</div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Sparse areas</div>
-            <div className="mt-2 space-y-1">
-              {signals.slice(0, 4).map((s, i) => (
-                <div key={i} className="text-xs">
-                  <span className="font-semibold text-slate-900">{s.label || s.genre || s.name}</span>
-                  <span className="text-slate-500"> · limited evidence in this set</span>
-                </div>
-              ))}
-              {!signals.length && <div className="text-[11px] text-slate-400">None computed</div>}
-            </div>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white/80 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase">Low traction</div>
-            <div className="text-[11px] text-slate-500 mt-2">Rare and lower engagement in this set</div>
-          </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-amber-800 uppercase">Saturated</div>
-            <div className="text-[11px] text-slate-600 mt-2">Shows up often in this set</div>
-          </div>
-        </div>
+      <p className="text-[11px] text-slate-500 font-medium">
+        How common vs how it performs in this set · not proof of demand
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <Cell
+          title="Open questions"
+          tone="border-dashed border-slate-200 bg-white"
+          items={[]}
+          empty="Nothing parked here yet — sparse themes land on the right when we find them."
+        />
+        <Cell
+          title="Sparse areas"
+          tone="border-emerald-100 bg-emerald-50/60"
+          items={sparse.map(nameOf)}
+          empty="No sparse themes flagged in this set."
+        />
+        <Cell
+          title="Low traction"
+          tone="border-slate-200 bg-slate-50/80"
+          items={weak.map(nameOf)}
+          empty="No low-traction themes called out."
+        />
+        <Cell
+          title="Saturated"
+          tone="border-amber-100 bg-amber-50/70"
+          items={sat.map(nameOf)}
+          empty="No saturation flags beyond the top genres above."
+        />
       </div>
     </div>
   )
@@ -1017,10 +1238,12 @@ export function ReportAccordion({
   open,
   onToggle,
   report,
+  analysis,
 }: {
   open: boolean
   onToggle: () => void
   report: Record<string, any>
+  analysis?: any
 }) {
   const keys = [
     'dataset_overview',
@@ -1044,7 +1267,11 @@ export function ReportAccordion({
           {keys.map(k =>
             report[k] ? (
               <ReportSection key={k} field={k}>
-                <p>{report[k]}</p>
+                {k === 'storytelling_pattern_analysis' ? (
+                  <StoryPatternCallout prose={report[k]} analysis={analysis} />
+                ) : (
+                  <p className="text-slate-700 leading-relaxed">{cleanReportProse(String(report[k]))}</p>
+                )}
               </ReportSection>
             ) : null
           )}

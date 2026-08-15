@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     youtube_videos_units: int = 1
 
     app_env: str = "production"
-    app_version: str = "3.0.14"
+    app_version: str = "3.0.16"
     log_level: str = "INFO"
     cors_origins: str = "*"
     public_base_url: str = ""

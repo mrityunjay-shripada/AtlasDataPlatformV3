@@ -11,8 +11,8 @@ import {
 } from './services/api'
 import {
   Toast, Badge, GenreChip, ConfidenceBar, BarChart, EmptyState,
-  ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion,
-  KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix, filterChartData, ClassificationGapNote,
+  ReportSection, InsightsHero, TakeawayRow, GapBoard, InsightsActionBar, ReportAccordion, StoryPatternCallout, cleanReportProse,
+  KeySignals, CompactStat, CompactActions, PredictiveLock, FindingActions, BreakoutCard, StickyResearchBar, ProximityStrip, PotentialMatrix, filterChartData, ClassificationGapNote, AnalyzeEmpty, HealthCard, formatViews,
   deriveTakeaways,
   STAGE_COPY, ERROR_COPY, PRESET_META,
 } from './components/ui'
@@ -125,7 +125,7 @@ function SharePage({ token }: { token: string }) {
               {report.executive_summary && (
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Executive summary</div>
-                  <p className="text-[15px] text-slate-800 leading-relaxed">{report.executive_summary}</p>
+                  <p className="text-[15px] text-slate-800 leading-relaxed">{cleanReportProse(report.executive_summary)}</p>
                 </div>
               )}
               <div className="bg-white border border-slate-200/80 rounded-3xl shadow-sm overflow-hidden">
@@ -135,7 +135,13 @@ function SharePage({ token }: { token: string }) {
                 <div className="p-6 space-y-8">
                   {['dataset_overview', 'genre_analysis', 'storytelling_pattern_analysis', 'engagement_analysis', 'limitations', 'conclusion'].map(k =>
                     report[k] ? (
-                      <ReportSection key={k} field={k}><p>{report[k]}</p></ReportSection>
+                      <ReportSection key={k} field={k}>
+                      {k === 'storytelling_pattern_analysis' ? (
+                        <StoryPatternCallout prose={report[k]} analysis={undefined} />
+                      ) : (
+                        <p className="text-slate-700 leading-relaxed">{cleanReportProse(String(report[k]))}</p>
+                      )}
+                    </ReportSection>
                     ) : null
                   )}
                 </div>
@@ -885,96 +891,116 @@ export default function App() {
                         </div>
                         <div className="p-4 space-y-3 min-h-[140px]">
                           {analyzeTab === 'overview' && (
-                            <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid md:grid-cols-2 gap-8 pt-1">
                               <div>
-                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Channels in this set</div>
-                                <ul className="text-sm space-y-1">
-                                  {(analyzeLayers.profile?.channels || []).slice(0, 6).map((c: any) => (
-                                    <li key={c.channel} className="flex justify-between gap-2">
-                                      <span className="truncate text-slate-700">{c.channel}</span>
-                                      <span className="tabular-nums font-semibold text-slate-900">{c.videos}</span>
-                                    </li>
-                                  ))}
-                                  {!analyzeLayers.profile?.channels?.length && (
-                                    <li className="text-xs text-slate-400">Rebuild analysis on a completed run</li>
-                                  )}
-                                </ul>
+                                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">Channels in this set</div>
+                                {(() => {
+                                  const raw = (analyzeLayers.profile?.channels || []) as any[]
+                                  const channels = raw.filter((c) => {
+                                    const name = String(c.channel || c.name || '').trim().toLowerCase()
+                                    return name && name !== 'unknown' && name !== 'n/a' && name !== 'null'
+                                  })
+                                  const nVid = status?.collected_count || status?.classified_count || 0
+                                  if (!channels.length) {
+                                    return (
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-base font-medium text-slate-500 italic">Channel mix not summarized</span>
+                                        {nVid > 0 && (
+                                          <span className="bg-slate-100 text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                            {nVid} videos
+                                          </span>
+                                        )}
+                                      </div>
+                                    )
+                                  }
+                                  return (
+                                    <ul className="text-sm space-y-1.5">
+                                      {channels.slice(0, 6).map((c: any) => (
+                                        <li key={c.channel || c.name} className="flex justify-between gap-2">
+                                          <span className="truncate text-slate-700">{c.channel || c.name}</span>
+                                          <span className="tabular-nums font-semibold text-slate-900">{c.videos ?? c.count}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )
+                                })()}
                               </div>
                               <div>
-                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Current view</div>
-                                <dl className="grid grid-cols-2 gap-3">
+                                <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">Current view</div>
+                                <dl className="flex flex-wrap items-baseline gap-10">
                                   <div>
-                                    <dt className="text-[11px] text-slate-500">Mean views</dt>
-                                    <dd className="text-xl font-semibold tabular-nums">{Math.round(analyzeLayers.performance?.summary?.mean_views || 0).toLocaleString()}</dd>
+                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Mean views</dt>
+                                    <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
+                                      {formatViews(analyzeLayers.performance?.summary?.mean_views)}
+                                    </dd>
                                   </div>
                                   <div>
-                                    <dt className="text-[11px] text-slate-500">Median</dt>
-                                    <dd className="text-xl font-semibold tabular-nums">{Math.round(analyzeLayers.performance?.summary?.median_views || 0).toLocaleString()}</dd>
+                                    <dt className="text-sm font-medium text-slate-500 mb-0.5">Median</dt>
+                                    <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">
+                                      {formatViews(analyzeLayers.performance?.summary?.median_views)}
+                                    </dd>
                                   </div>
                                 </dl>
                               </div>
                             </div>
                           )}
                           {analyzeTab === 'performance' && (
-                            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <dl className="grid grid-cols-2 md:grid-cols-3 gap-6">
                               <div>
-                                <dt className="text-[11px] text-slate-500">Average</dt>
-                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.mean_views || 0).toLocaleString()}</dd>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Average</dt>
+                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.mean_views)}</dd>
                               </div>
                               <div>
-                                <dt className="text-[11px] text-slate-500">Median</dt>
-                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.median_views || 0).toLocaleString()}</dd>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Median</dt>
+                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.median_views)}</dd>
                               </div>
                               <div>
-                                <dt className="text-[11px] text-slate-500">Maximum</dt>
-                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{Math.round(analyzeLayers.performance?.summary?.max_views || 0).toLocaleString()}</dd>
+                                <dt className="text-sm font-medium text-slate-500 mb-1">Maximum</dt>
+                                <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{formatViews(analyzeLayers.performance?.summary?.max_views)}</dd>
                               </div>
-                              <div>
-                                <dt className="text-[11px] text-slate-500">Eng. proxy</dt>
-                                <dd className="text-2xl font-semibold tabular-nums text-slate-900">{analyzeLayers.performance?.summary?.mean_engagement_proxy ?? 0}</dd>
-                              </div>
+                              {Number(analyzeLayers.performance?.summary?.mean_engagement_proxy) > 0 && (
+                                <div>
+                                  <dt className="text-sm font-medium text-slate-500 mb-1">Engagement proxy</dt>
+                                  <dd className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900">{Number(analyzeLayers.performance?.summary?.mean_engagement_proxy).toLocaleString()}</dd>
+                                </div>
+                              )}
                             </dl>
                           )}
                           {analyzeTab === 'patterns' && (
                             <div className="space-y-3">
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="text-left text-[11px] uppercase text-slate-400">
-                                      <th className="pb-2 font-semibold">Pattern</th>
-                                      <th className="pb-2 font-semibold text-right">Videos</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs || []).slice(0, 12).map((p: any, i: number) => {
-                                      const label = p.label || p.pattern || `${p.genre || ''} × ${p.trope || ''}`
-                                      const count = p.count ?? p.n ?? 0
-                                      return (
-                                        <tr
-                                          key={i}
-                                          className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
-                                          onClick={() => setInspectItem({ type: 'pattern', label, count, raw: p })}
-                                        >
-                                          <td className="py-2 text-slate-800">{label}</td>
-                                          <td className="py-2 text-right tabular-nums font-semibold">{count || '—'}</td>
-                                        </tr>
-                                      )
-                                    })}
-                                    {!(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs)?.length && (
-                                      <tr><td colSpan={2} className="text-xs text-slate-400 py-2">No pattern pairs yet</td></tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                              {inspectItem?.type === 'pattern' && (
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-                                  <div className="flex justify-between gap-2">
-                                    <div className="text-sm font-semibold text-slate-900">{inspectItem.label}</div>
-                                    <button type="button" className="text-xs text-slate-500" onClick={() => setInspectItem(null)}>Close</button>
-                                  </div>
-                                  <div className="text-2xl font-semibold tabular-nums">{inspectItem.count} <span className="text-sm font-normal text-slate-500">videos</span></div>
+                              {(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs || []).length ? (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="text-left text-[11px] uppercase text-slate-400">
+                                        <th className="pb-2 font-semibold">Pattern</th>
+                                        <th className="pb-2 font-semibold text-right">Videos</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(analyzeLayers.patterns?.genre_trope || analyzeLayers.patterns?.top_pairs || []).slice(0, 12).map((p: any, i: number) => {
+                                        const label = p.label || [p.genre, p.trope].filter(Boolean).join(' × ') || 'Pattern'
+                                        const count = p.count ?? p.n ?? p.videos ?? 0
+                                        return (
+                                          <tr key={i} className="border-t border-slate-100 hover:bg-slate-50/80 cursor-pointer" onClick={() => setInspectItem({ label, count, raw: p })}>
+                                            <td className="py-2 text-slate-800 font-medium">{label}</td>
+                                            <td className="py-2 text-right tabular-nums font-semibold">{count}</td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <AnalyzeEmpty title="No clear pattern pairs yet" body="Genre and story-pattern combinations will list here once labels are rich enough in this set." actionLabel="Open Evidence" onAction={() => setMode('evidence')} />
+                              )}
+                              {inspectItem && (
+                                <div className="rounded-xl border border-slate-200/60 bg-slate-50 p-4">
+                                  <div className="text-xs font-semibold text-slate-500 uppercase">Selected</div>
+                                  <div className="text-sm font-extrabold text-slate-900 mt-1">{inspectItem.label}</div>
+                                  <div className="text-2xl font-semibold tabular-nums mt-1">{inspectItem.count} <span className="text-sm font-normal text-slate-500">videos</span></div>
                                   <FindingActions
-                                    onWhy={() => focusAsk(`Why does the pattern ${inspectItem.label} appear in this sample?`)}
+                                    onWhy={() => focusAsk(`Why does the pattern ${inspectItem.label} appear in this set of videos?`)}
                                     onEvidence={() => {
                                       const trope = String(inspectItem.raw?.trope || inspectItem.label || '').split('×').pop()?.trim()
                                       if (trope) openLineage({ kind: 'trope', key: trope.replace(/ /g, '_'), count: inspectItem.count, total: status?.collected_count || 0 })
@@ -987,56 +1013,79 @@ export default function App() {
                             </div>
                           )}
                           {analyzeTab === 'diagnostic' && (
-                            <ul className="space-y-2">
-                              {(analyzeLayers.diagnostic?.flags || []).map((f: any, i: number) => (
-                                <li key={i} className="text-sm rounded-xl px-3 py-2 bg-slate-50 border border-slate-100">
-                                  <span className="text-[10px] uppercase font-semibold text-slate-500">{f.code}</span>
-                                  <div className="text-slate-800">{f.message}</div>
-                                </li>
-                              ))}
-                              {!analyzeLayers.diagnostic?.flags?.length && (
-                                <li className="text-xs text-slate-400">No diagnostic flags</li>
-                              )}
-                            </ul>
+                            <div className="grid sm:grid-cols-2 gap-4">
+                              {(() => {
+                                const flags = analyzeLayers.diagnostic?.flags || []
+                                const cards: { tone: 'amber' | 'slate'; title: string; body: string }[] = []
+                                for (const f of flags) {
+                                  const code = String(f.code || '').toLowerCase()
+                                  let msg = String(f.message || '')
+                                  if (code.includes('concentrat') || /concentrat|dominat|% of labeled/i.test(msg)) {
+                                    msg = msg.replace(/Top genre ['"]([^'"]+)['"] is (\d+)% of labeled rows[^.—–-]*/i, (_, g, p) => {
+                                      const name = String(g).replace(/_/g, ' ')
+                                      return `${name.charAt(0).toUpperCase()}${name.slice(1)} makes up about ${p}% of labeled videos in this set`
+                                    }).replace(/high concentration in this pull\.?/i, 'That is a high share for one genre here.')
+                                    cards.push({ tone: 'amber', title: 'High concentration', body: msg })
+                                  } else if (code.includes('under') || /underrepresentation/i.test(msg)) {
+                                    const n = msg.match(/(\d+)/)?.[1] || 'some'
+                                    cards.push({ tone: 'slate', title: 'Sparse themes', body: `We found ${n} theme(s) that barely appear in this set — rare here, not proof of opportunity.` })
+                                  } else {
+                                    cards.push({ tone: 'slate', title: String(f.code || 'Note').replace(/_/g, ' '), body: msg })
+                                  }
+                                }
+                                if (!cards.length) {
+                                  return <AnalyzeEmpty title="No data-health flags" body="Nothing concerning showed up in concentration or sparse-theme checks for this set." />
+                                }
+                                return cards.map((c, i) => <HealthCard key={i} tone={c.tone} title={c.title} body={c.body} />)
+                              })()}
+                            </div>
                           )}
                           {analyzeTab === 'outliers' && (
-                            <div className="grid sm:grid-cols-2 gap-3">
-                              {(Array.isArray(analyzeLayers.outliers?.items) ? analyzeLayers.outliers.items : Array.isArray(analyzeLayers.outliers) ? analyzeLayers.outliers : []).slice(0, 6).map((o: any, i: number) => (
-                                <BreakoutCard
-                                  key={i}
-                                  title={o.title || o.label || 'Video'}
-                                  views={typeof o.views === 'number' ? o.views : o.metric}
-                                  multiple={o.z != null ? `z ${o.z}` : (o.multiple || o.note || 'Sample outlier')}
-                                  tags={[o.genre, o.trope].filter(Boolean).join(' · ')}
-                                  onInvestigate={() => setInspectItem({ type: 'outlier', raw: o })}
-                                  onEvidence={() => {
-                                    if (o.genre) openLineage({ kind: 'genre', key: String(o.genre).replace(/ /g, '_'), count: 1, total: status?.collected_count || 1 })
-                                    else setMode('evidence')
-                                  }}
-                                />
-                              ))}
-                              {!(analyzeLayers.outliers?.items || (Array.isArray(analyzeLayers.outliers) && analyzeLayers.outliers.length)) && (
-                                <p className="text-xs text-slate-400">No outliers flagged</p>
+                            <div>
+                              {(Array.isArray(analyzeLayers.outliers?.items) ? analyzeLayers.outliers.items : Array.isArray(analyzeLayers.outliers) ? analyzeLayers.outliers : []).length ? (
+                                <div className="grid sm:grid-cols-2 gap-3">
+                                  {(Array.isArray(analyzeLayers.outliers?.items) ? analyzeLayers.outliers.items : Array.isArray(analyzeLayers.outliers) ? analyzeLayers.outliers : []).slice(0, 6).map((o: any, i: number) => (
+                                    <BreakoutCard
+                                      key={i}
+                                      title={o.title || o.label || 'Exception'}
+                                      views={o.views}
+                                      multiple={o.multiple || o.x_median}
+                                      tags={[o.genre, o.trope].filter(Boolean).join(' · ')}
+                                      onInvestigate={() => focusAsk(`Why is this video an exception: ${o.title || o.label}?`)}
+                                      onEvidence={() => {
+                                        if (o.genre) openLineage({ kind: 'genre', key: String(o.genre).replace(/ /g, '_'), count: 1, total: status?.collected_count || 1 })
+                                        else setMode('evidence')
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <AnalyzeEmpty title="No standout exceptions" body="Nothing in this set was flagged as an unusual outlier versus the rest of the videos." actionLabel="Open Evidence" onAction={() => setMode('evidence')} />
                               )}
                             </div>
                           )}
                           {analyzeTab === 'explore' && (
                             <div className="space-y-2 text-sm">
-                              {(analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins || []).map((b: any, i: number) => (
-                                <div key={i} className="flex justify-between gap-2">
-                                  <span className="text-slate-600">{b.label || b.range}</span>
-                                  <span className="font-semibold tabular-nums">{b.count ?? b.n}</span>
-                                </div>
-                              ))}
-                              {!(analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins)?.length && (
-                                <p className="text-xs text-slate-400">No exploratory buckets</p>
+                              {(analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins || []).length ? (
+                                (analyzeLayers.exploratory?.buckets || analyzeLayers.exploratory?.bins || []).map((b: any, i: number) => (
+                                  <div key={i} className="flex justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50">
+                                    <span className="text-slate-700 font-medium">{b.label || b.range}</span>
+                                    <span className="font-semibold tabular-nums text-slate-900">{b.count ?? b.n}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <AnalyzeEmpty title="Nothing more to explore yet" body="Add more videos (Next batch) if you want deeper groupings beyond the main patterns." actionLabel="Back to Overview" onAction={() => setAnalyzeTab('overview')} />
                               )}
                             </div>
                           )}
                           {analyzeTab === 'proximity' && (
                             <div className="space-y-3">
-                              <p className="text-[11px] text-slate-500">Matched by topic and title · this set only</p>
-                              <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
+                              <p className="text-[11px] text-slate-500 font-medium">Matched by topic and title · this set only</p>
+                              {(analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []).length ? (
+                                <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
+                              ) : (
+                                <AnalyzeEmpty title="No topic matches yet" body="Similar videos will show here when we can match titles and topics in this set." actionLabel="Open Evidence" onAction={() => setMode('evidence')} />
+                              )}
                             </div>
                           )}
                           {analyzeTab === 'potential' && (
@@ -1163,15 +1212,21 @@ export default function App() {
                       </button>
                     )}
 
-                    {/* 5. Go deeper */}
+                    {/* 5. Go deeper — structured pairings, then summary */}
+                    {report?.storytelling_pattern_analysis && (
+                      <StoryPatternCallout
+                        prose={report.storytelling_pattern_analysis}
+                        analysis={analysis}
+                      />
+                    )}
                     {report?.executive_summary && (
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
                         <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">Executive summary</div>
-                        <p className="text-[15px] text-slate-800 leading-relaxed">{report.executive_summary}</p>
+                        <p className="text-[15px] text-slate-800 leading-relaxed">{cleanReportProse(report.executive_summary)}</p>
                       </div>
                     )}
                     {report && (
-                      <ReportAccordion open={reportOpen} onToggle={() => setReportOpen(o => !o)} report={report} />
+                      <ReportAccordion open={reportOpen} onToggle={() => setReportOpen(o => !o)} report={report} analysis={analysis} />
                     )}
 
                     <p className="text-[11px] text-slate-400 leading-relaxed px-1">
