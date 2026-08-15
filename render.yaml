@@ -1,0 +1,71 @@
+# Atlas Data Platform V3 — Render Blueprint (Option A)
+# Prefer Neon for DATABASE_URL in production demos (free Postgres on Render can expire).
+
+services:
+  - type: web
+    name: atlasdataplatform-v3-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DATABASE_URL
+        sync: false  # Neon recommended: postgresql://... from console.neon.tech
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MAX_VIDEOS_PER_RUN
+        value: "50"
+      - key: MAX_CONCURRENT_RUNS
+        value: "1"
+      - key: ENABLE_EMBEDDINGS
+        value: "false"
+      - key: ENABLE_INLINE_WORKER
+        value: "true"
+      - key: RUN_TIME_BUDGET_SECONDS
+        value: "720"
+
+  # Optional: always-on worker (use Starter plan). Set ENABLE_INLINE_WORKER=false on web.
+  - type: worker
+    name: atlasdataplatform-v3-worker
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.worker_main
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENABLE_INLINE_WORKER
+        value: "false"
