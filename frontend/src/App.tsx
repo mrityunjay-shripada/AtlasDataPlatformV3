@@ -138,7 +138,7 @@ function SharePage({ token }: { token: string }) {
                       <ReportSection key={k} field={k}>
                       {k === 'storytelling_pattern_analysis' ? (
                         <StoryPatternCallout prose={report[k]} analysis={undefined} />
-                      ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis'].includes(k) ? (
+                      ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis', 'limitations', 'conclusion'].includes(k) ? (
                         (() => {
                           const c = proseToInsightCallout(k, String(report[k]))
                           return (

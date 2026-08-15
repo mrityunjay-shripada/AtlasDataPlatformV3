@@ -1,3 +1,8 @@
+## 3.0.21
+
+- Limitations + Conclusion use InsightCallout (same as Engagement)
+- Conclusion sample-bound; no whitespace/opportunity prescription
+
 ## 3.0.19
 
 - Prove → Evidence; clickable chart rows deep-link to filtered Evidence;

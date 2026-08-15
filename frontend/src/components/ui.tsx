@@ -335,7 +335,7 @@ export function InsightCallout({
 }
 
 /** Build a simple callout from free prose when structured JSON is not available. */
-export function proseToInsightCallout(field: string, prose: string): {
+export function proseToInsightCallout(field: string, prose: string, analysis?: any): {
   kicker: string
   headline: string
   metric?: string
@@ -347,15 +347,85 @@ export function proseToInsightCallout(field: string, prose: string): {
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length > 20)
+
+  // --- Limitations: fixed, scannable, honest ---
+  if (field === 'limitations') {
+    const root = analysis?.analysis || analysis || {}
+    const n =
+      root.engagement_stats?.count ||
+      Object.values(root.genre_distribution || {}).reduce((s: number, v: any) => s + Number(v), 0) ||
+      0
+    const sampleMatch = cleaned.match(/(\d+)\s+videos?/i)
+    const sampleN = sampleMatch ? sampleMatch[1] : n || '—'
+    const bullets = [
+      `Sample size is ${sampleN} videos in this pull.`,
+      /engagement proxy|likes and comments|0\.0|recorded as 0/i.test(cleaned)
+        ? 'Likes and comments were not available (engagement proxy is 0) — views are the main performance signal.'
+        : 'Some engagement fields may be incomplete in this pull.',
+      'Figures describe this set only — not the full YouTube micro-drama market.',
+    ]
+    return {
+      kicker: 'Limitations',
+      headline: `What this study cannot claim`,
+      bullets,
+      footnote: 'Applies to this pull only.',
+    }
+  }
+
+  // --- Conclusion: sample-bound; strip opportunity/market advice ---
+  if (field === 'conclusion') {
+    const root = analysis?.analysis || analysis || {}
+    const genres = root.genre_distribution || {}
+    const total = Object.values(genres).reduce((s: number, v: any) => s + Number(v), 0) || 1
+    const ranked = Object.entries(genres)
+      .filter(([k]) => !['unknown', 'other'].includes(String(k).toLowerCase()))
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+    const top = ranked.slice(0, 2).map(([k, v]) => {
+      const pct = Math.round((Number(v) / total) * 100)
+      return `${String(k).replace(/_/g, ' ')} (~${pct}%)`
+    })
+    const sparse = ranked.filter(([, v]) => Number(v) / total < 0.05).slice(0, 3).map(([k]) => String(k).replace(/_/g, ' '))
+    // strip market-advice sentences from model prose
+    const safe = sentences
+      .map((s) =>
+        s
+          .replace(/strategic whitespace[^.]*\.?/gi, '')
+          .replace(/untapped audience[^.]*\.?/gi, '')
+          .replace(/creators and producers can[^.]*\.?/gi, '')
+          .replace(/developing content in[^.]*\.?/gi, '')
+          .replace(/capturing untapped[^.]*\.?/gi, '')
+          .trim(),
+      )
+      .filter((s) => s.length > 25 && !/whitespace|opportunity|should develop|market interest/i.test(s))
+
+    const bullets: string[] = []
+    if (top.length) {
+      bullets.push(`In this set, ${top.join(' and ')} account for most labeled videos and strong view counts.`)
+    }
+    if (sparse.length) {
+      bullets.push(`${sparse.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} barely appear here — rare in this sample, not proof of demand.`)
+    }
+    bullets.push('Use Evidence and further batches to test whether these patterns hold beyond this pull.')
+    if (safe[0] && bullets.length < 4) bullets.unshift(safe[0].slice(0, 180))
+
+    return {
+      kicker: 'Conclusion',
+      headline: 'What this set of videos shows',
+      bullets: bullets.slice(0, 4),
+      footnote: 'Descriptive of this sample only — not market advice.',
+    }
+  }
+
   const meta: Record<string, string> = {
     dataset_overview: 'Dataset overview',
     genre_analysis: 'Genre analysis',
     engagement_analysis: 'Engagement',
     storytelling_pattern_analysis: 'Storytelling patterns',
+    limitations: 'Limitations',
+    conclusion: 'Conclusion',
   }
   const kicker = meta[field] || field.replace(/_/g, ' ')
   const headline = sentences[0] || cleaned.slice(0, 120) || 'Summary for this set of videos.'
-  // pull first percentage as metric if present
   const m = cleaned.match(/(\d+(?:\.\d+)?)\s*%/)
   const metric = m ? `${m[1]}%` : undefined
   const bullets = sentences.slice(1, 5)
@@ -1396,12 +1466,11 @@ export function ReportAccordion({
               <ReportSection key={k} field={k}>
                 {k === 'storytelling_pattern_analysis' ? (
                   <StoryPatternCallout prose={report[k]} analysis={analysis} />
-                ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis'].includes(k) ? (
+                ) : ['dataset_overview', 'genre_analysis', 'engagement_analysis', 'limitations', 'conclusion'].includes(k) ? (
                   (() => {
-                    const c = proseToInsightCallout(k, String(report[k]))
+                    const c = proseToInsightCallout(k, String(report[k]), analysis)
                     return (
                       <InsightCallout
-                        kicker={c.kicker}
                         headline={c.headline}
                         metric={c.metric}
                         bullets={c.bullets}
