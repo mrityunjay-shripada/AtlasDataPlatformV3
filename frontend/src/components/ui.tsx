@@ -180,25 +180,25 @@ export function StatPill({ label, value, hint }: { label: string; value: string 
 }
 
 export const STAGE_COPY: Record<string, string> = {
-  queued: 'Queued — waiting for the research worker…',
-  planning: 'Planning search strategy…',
+  queued: 'Queued — starting shortly…',
+  planning: 'Planning how to search YouTube…',
   collecting: 'Finding micro-dramas on YouTube…',
-  cleaning: 'Cleaning and deduplicating results…',
+  cleaning: 'Removing duplicate videos…',
   classifying: 'Labeling story patterns…',
-  analyzing: 'Measuring genre saturation & whitespace…',
-  generating_report: 'Writing grounded findings…',
+  analyzing: 'Looking for common patterns and sparse themes…',
+  generating_report: 'Drafting insights…',
   completed: 'Research complete',
-  partial: 'Finished early — results are still usable',
-  failed: 'Run failed',
+  partial: 'Finished early — you can still use these results',
+  failed: 'Something went wrong with this run',
 }
 
 export const ERROR_COPY: Record<string, string> = {
-  quota_youtube: 'YouTube daily limit reached. Try tomorrow or use Quick scan.',
-  auth: 'API keys missing or invalid on the server.',
-  llm_parse: 'Model returned unusable output. Resume to retry this stage.',
-  timeout: 'Time or rate limit hit. Resume or lower the preset.',
-  db: 'Database issue. Check Render/Neon connectivity.',
-  unknown: 'Unexpected error. Check event log or resume.',
+  quota_youtube: 'YouTube daily limit reached. Try again tomorrow or use Quick scan.',
+  auth: 'Server API keys are missing or invalid. Check your deployment settings.',
+  llm_parse: 'AI generation failed. Click Resume to try this step again.',
+  timeout: 'This step timed out. Resume, or try a smaller Quick scan.',
+  db: 'We hit a database snag. Please try again in a moment.',
+  unknown: 'Something unexpected happened. Resume the run, or check the event log.',
 }
 
 export const PRESET_META = [
@@ -252,7 +252,7 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
         primary: `${String(topG[0]).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} ${Math.round((Number(topG[1]) / total) * 100)}%`,
         secondary: `${topG[1]} of ${total}`,
       }
-    : { title: 'High share', primary: '—', secondary: 'No genre labels yet' }
+    : { title: 'High share', primary: '—', secondary: 'No genre tags yet' }
 
   const open = {
     title: 'Underrepresented',
@@ -270,7 +270,7 @@ export function deriveTakeaways(analysis: any, report: any, n: number) {
     : {
         title: 'Emerging',
         primary: '—',
-        secondary: 'No trope labels yet',
+        secondary: 'No story-pattern tags yet',
       }
 
   // Board chips from distributions (not prose notes) + lineage keys
@@ -388,20 +388,25 @@ export function ClassificationGapNote({
         ? 'border-slate-200 bg-slate-50 text-slate-800'
         : 'border-slate-100 bg-white text-slate-600'
   return (
-    <div className={`mt-3 rounded-xl border px-3 py-2.5 text-[11px] leading-snug ${tone}`}>
-      <div className="font-semibold tracking-wide uppercase text-[10px] opacity-80">
-        Classification coverage · {level}
+    <div className={`mt-3 rounded-xl border border-slate-200/60 shadow-sm px-3.5 py-3 text-[11px] leading-snug ${tone}`}>
+      <div className="font-semibold tracking-wide uppercase text-[10px] text-slate-500">
+        Review untagged data · {level}
       </div>
-      <div className="mt-1 font-medium">
-        {dropped} of {total} ({pct}%) {kind} labels are unknown/other — not ranked as storytelling patterns.
+      <div className="mt-1.5 text-slate-700 font-medium">
+        About{' '}
+        <span className={`px-2 py-0.5 rounded-md font-semibold ${pct >= 25 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700'}`}>
+          {pct >= 25 ? `1 in ${Math.max(2, Math.round(100 / pct))}` : `${pct}%`}
+        </span>
+        {' '}
+        videos ({dropped} of {total}) don’t have a clear {kind} tag yet. Untagged items aren’t ranked as story patterns.
       </div>
       {gaps && gaps.length > 0 && (
-        <div className="mt-1 opacity-80">
+        <div className="mt-1 text-slate-500">
           {gaps.map((g) => `${g.label}: ${g.count}`).join(' · ')}
         </div>
       )}
-      <div className="mt-1 opacity-70">
-        Treat as a method gap (reclassify / review queue), not as an “Unknown” trope insight.
+      <div className="mt-1.5 text-slate-500">
+        Open Evidence to review them — this is a labeling gap, not a story trend.
       </div>
     </div>
   )
@@ -435,19 +440,19 @@ export function StickyResearchBar({
 }) {
   const title = shortStudyTitle(question)
   return (
-    <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-slate-50/95 backdrop-blur border-b border-slate-200/80 mb-3">
+    <div className="sticky top-0 z-20 -mx-1 px-1 py-2.5 bg-white/70 backdrop-blur-md border-b border-slate-200/60 mb-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas · research</div>
-          <div className="text-sm font-semibold text-slate-900 truncate max-w-[28rem]">{title}</div>
-          <div className="text-[11px] text-slate-500 tabular-nums">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Atlas research</div>
+          <div className="text-sm font-extrabold tracking-tight text-slate-900 truncate max-w-[28rem]">{title}</div>
+          <div className="text-[11px] text-slate-500 font-medium tabular-nums">
             {n} videos · {classified ?? n} classified
             {statusLabel ? ` · ${statusLabel}` : ''}
           </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {onAsk && (
-            <button type="button" className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-slate-900 text-white" onClick={onAsk}>
+            <button type="button" className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800 transition-colors" onClick={onAsk}>
               Ask Atlas
             </button>
           )}
@@ -527,13 +532,13 @@ export function PotentialMatrix({
 }) {
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-slate-500">Signal matrix in this sample only · not market validation</p>
+      <p className="text-[11px] text-slate-500">Emerging signals based on current data · not proof of demand</p>
       <div className="relative rounded-2xl border border-slate-200 bg-slate-50/50 p-4 min-h-[200px]">
         <div className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase font-semibold text-slate-400">Performance →</div>
         <div className="absolute left-2 top-1/2 -translate-y-1/2 -rotate-90 origin-left text-[10px] uppercase font-semibold text-slate-400">Representation →</div>
         <div className="grid grid-cols-2 gap-2 mt-4 ml-4">
           <div className="rounded-xl border border-dashed border-slate-200 bg-white/80 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase">Investigate</div>
+            <div className="text-[10px] font-semibold text-slate-400 uppercase">Open questions</div>
             <div className="mt-2 space-y-1">
               {signals.filter((s) => (s.level || '').includes('invest') || (s.note || '').toLowerCase().includes('performance')).slice(0, 3).map((s, i) => (
                 <div key={i} className="text-xs font-medium text-slate-800">{s.label || s.genre || s.name}</div>
@@ -541,24 +546,24 @@ export function PotentialMatrix({
             </div>
           </div>
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Potential signals</div>
+            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Sparse areas</div>
             <div className="mt-2 space-y-1">
               {signals.slice(0, 4).map((s, i) => (
                 <div key={i} className="text-xs">
                   <span className="font-semibold text-slate-900">{s.label || s.genre || s.name}</span>
-                  <span className="text-slate-500"> · limited evidence</span>
+                  <span className="text-slate-500"> · limited evidence in this set</span>
                 </div>
               ))}
               {!signals.length && <div className="text-[11px] text-slate-400">None computed</div>}
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white/80 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase">Weak</div>
-            <div className="text-[11px] text-slate-500 mt-2">Low representation · low engagement in sample</div>
+            <div className="text-[10px] font-semibold text-slate-400 uppercase">Low traction</div>
+            <div className="text-[11px] text-slate-500 mt-2">Rare and lower engagement in this set</div>
           </div>
           <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-3 min-h-[88px]">
-            <div className="text-[10px] font-semibold text-amber-800 uppercase">Crowded</div>
-            <div className="text-[11px] text-slate-600 mt-2">High representation in sample</div>
+            <div className="text-[10px] font-semibold text-amber-800 uppercase">Saturated</div>
+            <div className="text-[11px] text-slate-600 mt-2">Shows up often in this set</div>
           </div>
         </div>
       </div>
@@ -582,7 +587,7 @@ export function InsightsHero({
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-        <span className="font-semibold text-slate-900 tabular-nums">{n}</span>
+        <span className="font-extrabold tracking-tight text-slate-900 tabular-nums">{n}</span>
         <span>videos</span>
         <span className="text-slate-300">·</span>
         <span className="tabular-nums font-medium text-slate-800">{classified ?? n}</span>
@@ -602,7 +607,7 @@ export function InsightsHero({
       {question && (
         <p className="text-[11px] text-slate-500 line-clamp-2" title={question}>{question}</p>
       )}
-      <p className="text-[11px] text-slate-400">Sample only · not a market census</p>
+      <p className="text-[11px] text-slate-400">Directional sample · not a complete market view</p>
     </div>
   )
 }
@@ -616,7 +621,7 @@ export function FindingActions({
   onEvidence?: () => void
   onAsk?: () => void
 }) {
-  const btn = 'text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
+  const btn = 'text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-200/80 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300 transition-colors'
   return (
     <div className="flex flex-wrap gap-1.5 mt-2">
       {onWhy && <button type="button" className={btn} onClick={onWhy}>Why?</button>}
@@ -679,28 +684,42 @@ export function KeySignals({
     <div>
       <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400 mb-2">Key findings</div>
       <div className={`grid gap-3 ${items.length >= 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-3"}`}>
-        {items.map((it) => (
-          <div
-            key={it.label}
-            className={`rounded-2xl border bg-white p-4 shadow-sm ${it.tone || 'border-slate-200'}`}
-          >
-            <button
-              type="button"
-              disabled={!it.filter || !onSelect}
-              onClick={() => it.filter && onSelect?.(it.filter)}
-              className={`w-full text-left ${it.filter ? 'cursor-pointer' : ''}`}
+        {items.map((it) => {
+          const interactive = !!(it.filter && onSelect)
+          const isGap = /untagged|unclassified/i.test(it.label || '')
+          return (
+            <div
+              key={it.label}
+              className={`rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm transition-all duration-300 ${
+                interactive ? 'hover:-translate-y-1 hover:shadow-md cursor-pointer' : ''
+              } ${it.tone || ''}`}
             >
-              <div className="text-2xl md:text-3xl font-semibold tabular-nums text-slate-900 tracking-tight">{it.value}</div>
-              <div className="text-xs font-semibold text-slate-800 mt-1">{it.label}</div>
-              {it.sub && <div className="text-[11px] text-slate-500 mt-0.5">{it.sub}</div>}
-            </button>
-            <FindingActions
-              onEvidence={it.filter && onSelect ? () => onSelect(it.filter) : undefined}
-              onAsk={onAsk ? () => onAsk(it.ask || `Why is ${it.label} significant in this sample?`) : undefined}
-              onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in this research sample.`) : undefined}
-            />
-          </div>
-        ))}
+              <button
+                type="button"
+                disabled={!interactive}
+                onClick={() => it.filter && onSelect?.(it.filter)}
+                className="w-full text-left"
+              >
+                <div className="text-2xl md:text-3xl font-extrabold tabular-nums tracking-tight text-slate-900">
+                  {isGap && String(it.value).includes('%') ? (
+                    <span className="inline-flex items-center bg-amber-50 text-amber-800 px-2 py-0.5 rounded-md">{it.value}</span>
+                  ) : (
+                    it.value
+                  )}
+                </div>
+                <div className="text-xs font-extrabold tracking-tight text-slate-900 mt-1.5">{it.label}</div>
+                {it.sub && (
+                  <div className="text-[11px] text-slate-500 font-medium mt-0.5 leading-snug">{it.sub}</div>
+                )}
+              </button>
+              <FindingActions
+                onEvidence={interactive ? () => onSelect!(it.filter) : (onSelect && isGap ? () => onSelect({ kind: 'genre', key: '_gap', count: 0, total: 0 } as any) : undefined)}
+                onAsk={onAsk ? () => onAsk(it.ask || `Why does ${it.label} matter in this set of videos?`) : undefined}
+                onWhy={onAsk ? () => onAsk(it.ask || `Explain ${it.label} (${it.value}) in plain language for this research.`) : undefined}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -909,7 +928,7 @@ export function GapBoard({
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Crowded vs underrepresented</div>
+        <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Common vs rare in this set</div>
         <div className="text-[11px] font-medium text-slate-900">Click a row → Evidence</div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
@@ -927,7 +946,7 @@ export function GapBoard({
         </div>
         <div className="bg-white border border-emerald-100 rounded-3xl p-5 shadow-sm">
           <h3 className="text-sm font-semibold text-slate-900 mb-1">Underrepresented</h3>
-          <p className="text-[10px] text-slate-500 mb-3">In this sample only · not market validation</p>
+          <p className="text-[10px] text-slate-500 mb-3">Based on this set of videos only</p>
           <ul className="space-y-2">
             {open.length ? open.map((it, i) => (
               <li key={i} className="list-none">
@@ -1016,7 +1035,7 @@ export function ReportAccordion({
       <button type="button" className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left hover:bg-slate-50" onClick={onToggle}>
         <div>
           <div className="text-sm font-semibold text-slate-900">Full research write-up</div>
-          <div className="text-xs text-slate-500">Collapsed by default · open for full memo</div>
+          <div className="text-xs text-slate-500">Optional full write-up</div>
         </div>
         <span className="text-slate-400 text-lg">{open ? '▴' : '▾'}</span>
       </button>

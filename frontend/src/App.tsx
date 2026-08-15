@@ -280,7 +280,7 @@ export default function App() {
       } catch { /* fall back to filter-only */ }
     }
     setMode('evidence')
-    showToast('Proof · Evidence for this claim')
+    showToast('Showing the videos and math behind this finding')
   }
 
   const matchesLineage = (r: any, f: LineageFilter | null) => {
@@ -755,7 +755,7 @@ export default function App() {
                           const cl = await listRunClaims(runId)
                           setClaimsList(cl.claims || [])
                           showToast(`Rebuilt ${cl.claims?.length || 0} claims`)
-                        }).catch((e: any) => setError(e.message))}>Rebuild claims</button>
+                        }).catch((e: any) => setError(e.message))}>Refresh findings links</button>
                       </p>
                     )}
                     <InsightsHero
@@ -774,7 +774,7 @@ export default function App() {
                         {
                           value: takes.crowded?.items?.[0]?.value || takes.crowded?.primary || '—',
                           label: takes.crowded?.items?.[0]?.label || '—',
-                          sub: takes.crowded?.secondary || 'High share in sample',
+                          sub: takes.crowded?.secondary || 'Dominant in this set',
                           tone: 'border-amber-100 bg-amber-50/40',
                           filter: takes.crowded?.items?.[0]?.filter || takes.crowded?.filter,
                           ask: `Why is ${takes.crowded?.items?.[0]?.label || 'this genre'} concentrated in this sample?`,
@@ -782,7 +782,7 @@ export default function App() {
                         {
                           value: takes.open?.items?.[0]?.value || '0',
                           label: takes.open?.items?.[0]?.label || '—',
-                          sub: 'Underrepresented in sample',
+                          sub: 'Rare in this set',
                           tone: 'border-emerald-100 bg-emerald-50/40',
                           filter: takes.open?.items?.[0]?.filter || takes.open?.filter,
                           ask: `What does underrepresentation of ${takes.open?.items?.[0]?.label || 'this genre'} mean here?`,
@@ -791,7 +791,7 @@ export default function App() {
                           value: (takes.emerging || takes.pattern)?.items?.[0]?.value
                             || (takes.emerging || takes.pattern)?.primary || '—',
                           label: (takes.emerging || takes.pattern)?.items?.[0]?.label || '—',
-                          sub: (takes.emerging || takes.pattern)?.secondary || 'Top trope in sample',
+                          sub: (takes.emerging || takes.pattern)?.secondary || 'Common story pattern',
                           tone: 'border-slate-200',
                           filter: (takes.emerging || takes.pattern)?.items?.[0]?.filter
                             || (takes.emerging || takes.pattern)?.filter,
@@ -802,11 +802,11 @@ export default function App() {
                         const pct = Math.round(gap.gapShare * 100)
                         base.push({
                           value: `${pct}%`,
-                          label: 'Unclassified',
-                          sub: `${gap.dropped} of ${gap.total} ${gapKind} labels · coverage gap`,
-                          tone: 'border-amber-200 bg-amber-50/60',
+                          label: 'Untagged videos',
+                          sub: `${gap.dropped} of ${gap.total} need a clearer ${gapKind} tag`,
+                          tone: 'border-amber-200/80 bg-amber-50/50',
                           filter: undefined as any,
-                          ask: `Why are ${pct}% of ${gapKind} labels unknown/other in this sample, and how should we improve classification?`,
+                          ask: `About ${pct}% of videos lack a clear ${gapKind} tag. What does that mean and what should I do next?`,
                         })
                       }
                       return (
@@ -833,7 +833,7 @@ export default function App() {
                               </>
                             )
                           })()}
-                          <p className="text-[11px] text-slate-400 mt-3">Share of labeled videos in this sample only.</p>
+                          <p className="text-[11px] text-slate-400 mt-3">Distribution across tagged videos.</p>
                         </div>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
                           {(() => {
@@ -842,7 +842,7 @@ export default function App() {
                               <>
                                 <BarChart data={tropes} title="Top tropes" />
                                 <ClassificationGapNote dropped={dropped} total={total || 0} gaps={gaps} kind="trope" />
-                                <p className="text-[11px] text-slate-400 mt-2">Ranked tropes only · Open Evidence for rows.</p>
+                                <p className="text-[11px] text-slate-400 mt-2">Untagged videos are excluded from ranking. Open Evidence to inspect rows.</p>
                               </>
                             )
                           })()}
@@ -862,11 +862,11 @@ export default function App() {
                               ['overview', 'Overview'],
                               ['patterns', 'Patterns'],
                               ['performance', 'Performance'],
-                              ['diagnostic', 'Diagnostic'],
-                              ['outliers', 'Outliers'],
+                              ['diagnostic', 'Data health'],
+                              ['outliers', 'Exceptions'],
                               ['explore', 'Explore'],
-                              ['proximity', 'Proximity'],
-                              ['potential', 'Potential'],
+                              ['proximity', 'Topic groupings'],
+                              ['potential', 'Sparse areas'],
                             ] as const).map(([id, label]) => (
                               <button
                                 key={id}
@@ -887,7 +887,7 @@ export default function App() {
                           {analyzeTab === 'overview' && (
                             <div className="grid md:grid-cols-2 gap-4">
                               <div>
-                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Profile</div>
+                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Channels in this set</div>
                                 <ul className="text-sm space-y-1">
                                   {(analyzeLayers.profile?.channels || []).slice(0, 6).map((c: any) => (
                                     <li key={c.channel} className="flex justify-between gap-2">
@@ -901,7 +901,7 @@ export default function App() {
                                 </ul>
                               </div>
                               <div>
-                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Snapshot</div>
+                                <div className="text-[10px] uppercase font-semibold text-slate-400 mb-2">Current view</div>
                                 <dl className="grid grid-cols-2 gap-3">
                                   <div>
                                     <dt className="text-[11px] text-slate-500">Mean views</dt>
@@ -1035,7 +1035,7 @@ export default function App() {
                           )}
                           {analyzeTab === 'proximity' && (
                             <div className="space-y-3">
-                              <p className="text-[11px] text-slate-500">{analyzeLayers.proximity?.method || 'Taxonomy + title similarity'} · sample only</p>
+                              <p className="text-[11px] text-slate-500">Matched by topic and title · this set only</p>
                               <ProximityStrip pairs={analyzeLayers.proximity?.top_pairs || analyzeLayers.proximity?.pairs || analyzeLayers.proximity?.items || []} />
                             </div>
                           )}
@@ -1057,7 +1057,7 @@ export default function App() {
                     {prescriptive && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Prescriptive</div>
+                          <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Recommended actions</div>
                           <span className="text-[11px] text-slate-500">{prescriptive.status}</span>
                         </div>
                         <p className="text-xs text-slate-500">{prescriptive.note || prescriptive.message}</p>
@@ -1066,7 +1066,7 @@ export default function App() {
                             <div key={r.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="text-sm font-semibold text-slate-900">{r.title}</h3>
-                                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{r.priority}</span>
+                                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{String(r.priority || '').toLowerCase() === 'high' ? 'High priority' : String(r.priority || '').toLowerCase() === 'medium' ? 'Medium priority' : String(r.priority || '').toLowerCase() === 'low' ? 'Low priority' : r.priority}</span>
                               </div>
                               <p className="text-sm text-slate-700 leading-relaxed">{r.action}</p>
                               <div className="flex flex-wrap gap-2">
@@ -1081,13 +1081,13 @@ export default function App() {
                                         setActiveClaim(detail)
                                         setEvidenceFilter(null)
                                         setMode('evidence')
-                                        showToast('Opened proof for prescription')
+                                        showToast('Opened the evidence behind this recommendation')
                                       } catch (e: any) {
                                         setError(e.message)
                                       }
                                     }}
                                   >
-                                    claim {String(cid).slice(0, 8)}
+                                    View evidence
                                   </button>
                                 ))}
                               </div>
@@ -1105,13 +1105,13 @@ export default function App() {
                     {predictive && (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Predictive</div>
+                          <div className="text-[11px] uppercase tracking-[0.12em] font-semibold text-slate-400">Trends</div>
                           <span className="text-[11px] font-medium text-slate-800">{predictive.status}</span>
                         </div>
                         <p className="text-sm text-slate-700">{predictive.message}</p>
                         {predictive.status === 'insufficient_data' && (
                           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                            Need {predictive.min_required} sample observations (have {predictive.observation_count}). Complete more Next batches after snapshotting is enabled, or more runs on this study.
+                            More data needed for trends. We need about {predictive.min_required} complete batches on this study (you have {predictive.observation_count}). Run Next batch, then check back here.
                           </div>
                         )}
                         {predictive.status === 'ok' && (
@@ -1175,7 +1175,7 @@ export default function App() {
                     )}
 
                     <p className="text-[11px] text-slate-400 leading-relaxed px-1">
-                      Methods: YouTube Data API · structured classification · deterministic stats.
+                      Sourced via YouTube · automated story labels · calculated stats. Figures describe this set of videos.
                       Limitations: sample size {n || '—'}; figures describe this pull, not the entire platform.
                     </p>
                   </>

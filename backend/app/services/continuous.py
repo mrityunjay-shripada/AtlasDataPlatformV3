@@ -81,8 +81,8 @@ def build_pulse(db: Session, study_id: str) -> dict[str, Any]:
         return {
             "status": "insufficient_data",
             "message": (
-                "Pulse needs at least two sample observations in this study. "
-                "Next batch now records a snapshot each time it completes; or start another run on the same study."
+                "We need at least two complete batches on this study before a pulse comparison is useful. "
+                "Run Next batch again, or start another run in the same study."
             ),
             "observation_count": len(runs),
             "runs": [{"run_id": r.id, "n": r.collected_count, "completed_at": r.completed_at, "run_kind": getattr(r, "run_kind", None)} for r in runs],
@@ -92,11 +92,11 @@ def build_pulse(db: Session, study_id: str) -> dict[str, Any]:
     if observations and len(observations) >= 2:
         return {
             "status": "ok",
-            "message": f"Pulse across {len(observations)} observations (runs and/or Next-batch snapshots).",
+            "message": f"Comparing {len(observations)} batches in this study.",
             "observation_count": len(observations),
             "runs": observations,
             "series": observations,
-            "note": "Batch snapshots are successive samples on the same run — descriptive, not a market forecast.",
+            "note": "Based on successive batches in this study — descriptive only, not a market forecast.",
         }
 
     series = []

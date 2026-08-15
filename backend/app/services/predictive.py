@@ -24,7 +24,7 @@ def build_predictive(db: Session, study_id: str | None = None, run_id: str | Non
     if not study_id:
         return {
             "status": "insufficient_data",
-            "message": "No research study linked. Open a run that belongs to a study.",
+            "message": "Open a completed research run first — trends are tied to a study.",
             "forecasts": [],
             "observation_count": 0,
             "min_required": MIN_OBSERVATIONS,
@@ -50,15 +50,12 @@ def build_predictive(db: Session, study_id: str | None = None, run_id: str | Non
     if n_obs < MIN_OBSERVATIONS:
         # Honest guidance: Next batch helps only after snapshotting is on
         batch_hint = (
-            "Each completed Next batch now stores a snapshot. "
-            f"Need {MIN_OBSERVATIONS - n_obs} more completed observation(s) "
-            "(Next batch after this deploy, or additional runs on the same study)."
+            f"Run about {MIN_OBSERVATIONS - n_obs} more Next batch(es) on this study, then open Trends again."
         )
         if n_obs == 1 and any((r.plan_json or {}).get("batch_index", 1) >= 2 for r in runs):
             batch_hint = (
-                "This study already grew via Next batch, but earlier batches were not snapshotted. "
-                f"Complete {MIN_OBSERVATIONS - 1} more Next batch(es) or study runs after this update "
-                "so Atlas can store intermediate observations."
+                "Trend history started recently — earlier batches weren't saved as separate checkpoints. "
+                f"Run about {MIN_OBSERVATIONS - 1} more Next batch(es) on this study so we can compare over time."
             )
         return {
             **base,
@@ -76,7 +73,7 @@ def build_predictive(db: Session, study_id: str | None = None, run_id: str | Non
         return {
             **base,
             "status": "insufficient_data",
-            "message": "Not enough series points to form a trajectory.",
+            "message": "Not enough saved checkpoints yet to show a direction.",
             "forecasts": [],
             "series": series,
         }
@@ -99,16 +96,15 @@ def build_predictive(db: Session, study_id: str | None = None, run_id: str | Non
             "direction": direction,
             "confidence": "limited",
             "note": (
-                "Based only on successive samples in this research study "
-                "(including Next-batch snapshots). Not a market forecast."
+                "Based only on the batches we have in this study. Not a market forecast."
             ),
         })
 
     return {
         **base,
         "status": "ok",
-        "message": f"Illustrative trajectory from {n_obs} observations in this study.",
+        "message": f"Rough direction from {n_obs} batches in this study — not a market forecast.",
         "forecasts": forecasts,
         "series": series,
-        "note": "Descriptive trajectory inside this study — not external market prediction.",
+        "note": "Rough direction inside this study — not a market forecast.",
     }

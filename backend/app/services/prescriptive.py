@@ -13,13 +13,13 @@ from app.db.models import Claim, ResearchRun
 def build_prescriptive(db: Session, run_id: str) -> dict[str, Any]:
     run = db.query(ResearchRun).filter_by(id=run_id).first()
     if not run:
-        return {"status": "error", "message": "Run not found", "recommendations": []}
+        return {"status": "error", "message": "We couldn't find this research run.", "recommendations": []}
 
     claims = db.query(Claim).filter_by(run_id=run_id).order_by(Claim.created_at.asc()).all()
     if not claims:
         return {
             "status": "insufficient_data",
-            "message": "No claims for this run. Rebuild claims after analysis completes.",
+            "message": "No recommendations yet. Wait for analysis to finish, then refresh findings links.",
             "recommendations": [],
             "n": run.collected_count,
         }
@@ -157,5 +157,5 @@ def build_prescriptive(db: Session, run_id: str) -> dict[str, Any]:
         "study_id": run.study_id,
         "n": run.collected_count,
         "recommendations": recs,
-        "note": "Each recommendation is bound to claim_ids. Not market advice; sample-scoped research prescriptions.",
+        "note": "Each recommendation is bound to claim_ids. Not market advice — research guidance only; sample-scoped research prescriptions.",
     }

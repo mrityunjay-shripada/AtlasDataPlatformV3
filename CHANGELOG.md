@@ -1,3 +1,13 @@
+## 3.0.14
+
+- Visual hierarchy: frosted sticky, Key findings hover/contrast, amber pill on untagged %,
+  coverage callout spotlight (1 in N), soft cards — no global glassmorphism
+
+## 3.0.13
+
+- Copy pass: educational-guiding language across Insights, stages, errors, predictive, coverage, tabs
+- Untagged videos key finding; Recommended actions; Trends; Sparse areas; no claim-id chips
+
 ## 3.0.12
 
 - Key findings: 4th card when unknown/other ≥25% (Unclassified · coverage gap)
