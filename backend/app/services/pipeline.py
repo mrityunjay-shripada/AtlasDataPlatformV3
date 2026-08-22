@@ -359,6 +359,17 @@ async def execute_run(db: Session, run_id: str) -> None:
                     stats["classifications_new"] = stats.get("classifications_new", 0) + 1
                 except Exception as e:
                     logger.warning("classify %s: %s", v.youtube_id, e)
+                    err = str(e)[:500]
+                    meta = dict(v.raw_meta or {})
+                    meta["classify_error"] = err
+                    v.raw_meta = meta
+                    if hasattr(v, "classify_error"):
+                        v.classify_error = err
+                    skips = list(stats.get("classify_skips") or [])
+                    skips.append({"youtube_id": v.youtube_id, "title": (v.title or "")[:120], "error": err})
+                    stats["classify_skips"] = skips[-50:]
+                    stats["classify_failed"] = int(stats.get("classify_failed") or 0) + 1
+                    db.commit()
                     continue
             db.add(Classification(
                 video_id=v.id,
@@ -379,6 +390,12 @@ async def execute_run(db: Session, run_id: str) -> None:
         run.classified_count = (
             db.query(Classification).join(Video).filter(Video.run_id == run_id).count()
         )
+        collected_n = int(run.collected_count or 0)
+        labeled_n = int(run.classified_count or 0)
+        unlabeled_n = max(0, collected_n - labeled_n)
+        cov = (labeled_n / collected_n) if collected_n else 1.0
+        stats["unlabeled_count"] = unlabeled_n
+        stats["label_coverage"] = round(cov, 4)
         run.stats_json = stats
         db.commit()
 
@@ -428,6 +445,35 @@ async def execute_run(db: Session, run_id: str) -> None:
         if run.status == "partial":
             run.completed_at = datetime.utcnow()
             run.stats_json = stats
+            _release_lease(db, run)
+            db.commit()
+            try:
+                from app.services.memory_rag import index_run
+                await index_run(db, run_id)
+            except Exception:
+                pass
+            return
+
+        collected_n = int(run.collected_count or 0)
+        labeled_n = int(run.classified_count or 0)
+        unlabeled_n = max(0, collected_n - labeled_n)
+        cov = (labeled_n / collected_n) if collected_n else 1.0
+        min_cov = float(getattr(get_settings(), "classify_coverage_min", 0.90) or 0.90)
+        stats["unlabeled_count"] = unlabeled_n
+        stats["label_coverage"] = round(cov, 4)
+        # Rule 1: do not mark completed below coverage bar
+        if collected_n and labeled_n < collected_n and cov < min_cov:
+            run.status = "partial"
+            run.stage_checkpoint = "partial"
+            run.error_code = "classification_coverage"
+            run.error_message = (
+                f"{labeled_n} of {collected_n} videos labeled ({round(cov * 100)}%). "
+                f"{unlabeled_n} not tagged. Resume to retry labeling."
+            )
+            run.completed_at = datetime.utcnow()
+            run.stats_json = stats
+            incr("runs.partial_coverage")
+            emit(db, run.id, "partial", event="stage", message=run.error_message, payload=stats)
             _release_lease(db, run)
             db.commit()
             try:

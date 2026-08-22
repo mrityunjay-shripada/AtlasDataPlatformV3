@@ -156,6 +156,8 @@ async def status(run_id: str, db: Session = Depends(get_db), user: CurrentUser =
         "target_records": run.target_records,
         "collected_count": run.collected_count,
         "classified_count": run.classified_count,
+        "unlabeled_count": max(0, (run.collected_count or 0) - (run.classified_count or 0)),
+        "label_coverage": round(((run.classified_count or 0) / run.collected_count), 4) if run.collected_count else None,
         "error_message": run.error_message,
         "error_code": run.error_code,
         "started_at": run.started_at,
@@ -215,6 +217,7 @@ async def dataset(
         if conf is not None and conf < min_confidence:
             low += 1
             continue
+        raw = v.raw_meta if isinstance(v.raw_meta, dict) else {}
         d = {
             "id": v.youtube_id,
             "title": v.title,
@@ -224,6 +227,8 @@ async def dataset(
             "comments": v.comments,
             "duration_seconds": v.duration_seconds,
             "source_url": v.source_url,
+            "labeled": bool(v.classification),
+            "classify_error": getattr(v, "classify_error", None) or raw.get("classify_error"),
         }
         if v.classification:
             d.update({

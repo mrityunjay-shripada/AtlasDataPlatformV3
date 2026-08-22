@@ -1,3 +1,9 @@
+## 3.0.30 — Classification coverage contract
+- Runs below 90% labeled/collected finish as partial (error_code classification_coverage), not completed.
+- Classify failures persist on the video (classify_error + raw_meta + stats.classify_skips).
+- Insights frame: N videos · L labeled · U not tagged; findings caption uses labeled base.
+- Resume labeling CTA when unlabeled rows remain; Evidence shows skip reason.
+
 ## 3.0.29 — Library run ids visible
 - Each Library card shows short run id (first 8 chars) + completed date when available.
 - Compare dropdowns include video count next to id/status.

@@ -622,6 +622,7 @@ export const ERROR_COPY: Record<string, string> = {
   timeout: 'This step timed out. Resume, or try a smaller Quick scan.',
   db: 'We hit a database snag. Please try again in a moment.',
   unknown: 'Something unexpected happened. Resume the run, or check the event log.',
+  classification_coverage: 'Some videos were collected but not labeled. Resume to retry tagging those rows.',
 }
 
 export const PRESET_META = [
@@ -1068,21 +1069,38 @@ export function InsightsHero({
   statusLabel?: string
   question?: string
 }) {
+  const labeled = classified ?? 0
+  const unlabeled = Math.max(0, (n || 0) - labeled)
+  const tone = statusLabel === 'partial' || unlabeled > 0
+    ? 'bg-amber-50 text-amber-800'
+    : statusLabel === 'failed'
+      ? 'bg-red-50 text-red-700'
+      : 'bg-emerald-50 text-emerald-700'
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
         <span className="font-extrabold tracking-tight text-slate-900 tabular-nums">{n}</span>
         <span>videos</span>
         <span className="text-slate-300">·</span>
-        <span className="tabular-nums font-medium text-slate-800">{classified ?? n}</span>
-        <span>analyzed</span>
+        <span className="tabular-nums font-medium text-slate-800">{labeled}</span>
+        <span>labeled</span>
+        {unlabeled > 0 && (
+          <>
+            <span className="text-slate-300">·</span>
+            <span className="tabular-nums font-medium text-amber-800">{unlabeled} not tagged</span>
+          </>
+        )}
         {statusLabel && (
-          <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold uppercase">
+          <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${tone}`}>
             {statusLabel}
           </span>
         )}
       </div>
-      <p className="text-[11px] text-slate-400">Based on this batch</p>
+      <p className="text-[11px] text-slate-400">
+        {unlabeled > 0
+          ? `Findings use the ${labeled} labeled videos, not the full ${n} collected.`
+          : 'Based on this batch'}
+      </p>
     </div>
   )
 }

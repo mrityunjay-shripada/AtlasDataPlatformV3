@@ -63,6 +63,7 @@ class Video(Base):
     comments: Mapped[int] = mapped_column(Integer, default=0)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     raw_meta: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    classify_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     run: Mapped["ResearchRun"] = relationship(back_populates="videos")
     classification: Mapped["Classification | None"] = relationship(

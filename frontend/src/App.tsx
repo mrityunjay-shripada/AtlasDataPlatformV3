@@ -767,7 +767,7 @@ export default function App() {
                     <StickyResearchBar
                       question={status?.research_question || report?.title}
                       n={n}
-                      classified={status?.classified_count ?? n}
+                      classified={status?.classified_count ?? 0}
                       onAsk={() => focusAsk('What are the main findings in this research sample?')}
                       onEvidence={() => setMode('evidence')}
                       onCompare={() => setMode('library')}
@@ -788,11 +788,27 @@ export default function App() {
                     )}
                     <InsightsHero
                       n={n}
-                      classified={status?.classified_count ?? n}
+                      classified={status?.classified_count ?? 0}
                       runId={runId}
                       statusLabel={status?.status}
                       question={status?.research_question || report?.title}
                     />
+                    {(status?.collected_count ?? 0) > (status?.classified_count ?? 0) && runId && (
+                      <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-2">
+                        <p>
+                          <span className="font-semibold">{status.classified_count ?? 0} of {status.collected_count} labeled</span>
+                          {' '}({(status.collected_count - (status.classified_count ?? 0))} not tagged).
+                          Findings below use the labeled set. Resume retries tagging only the missing rows.
+                        </p>
+                        <button
+                          type="button"
+                          className="shrink-0 text-sm font-semibold bg-slate-900 text-white px-3 py-1.5 rounded-lg"
+                          onClick={() => resumeRun(runId).then(() => { setError(null); setMode('run'); showToast('Resume queued — retrying unlabeled videos') })}
+                        >
+                          Resume labeling
+                        </button>
+                      </div>
+                    )}
                     {(() => {
                       const tropeGap = filterChartData(aRoot.trope_distribution || {})
                       const genreGap = filterChartData(aRoot.genre_distribution || {})
@@ -867,7 +883,12 @@ export default function App() {
                               </>
                             )
                           })()}
-                          <p className="text-[11px] text-slate-400 mt-3">Distribution across tagged videos.</p>
+                          <p className="text-[11px] text-slate-400 mt-3">
+                            Shares are % of <span className="font-medium text-slate-600">{status?.classified_count ?? 0} labeled</span> videos
+                            {(status?.collected_count ?? 0) > (status?.classified_count ?? 0)
+                              ? <>, not the {(status?.collected_count ?? 0) - (status?.classified_count ?? 0)} untagged of {status?.collected_count} collected.</>
+                              : <> (same as collected in this run).</>}
+                          </p>
                         </div>
                         <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
                           {(() => {
@@ -1444,8 +1465,15 @@ export default function App() {
                       <button key={r.id} type="button" onClick={() => setDrawerRow(r)} className="w-full text-left bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
                         <div className="font-medium text-sm line-clamp-2">{r.title}</div>
                         <div className="mt-2 flex flex-wrap gap-2 items-center">
-                          <GenreChip genre={r.genre} />
+                          {r.labeled === false || !r.genre ? (
+                            <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md">Not tagged</span>
+                          ) : (
+                            <GenreChip genre={r.genre} />
+                          )}
                           <ConfidenceBar value={r.confidence} />
+                          {r.classify_error && (
+                            <span className="text-[11px] text-slate-500 truncate max-w-[14rem]" title={String(r.classify_error)}>Label failed: {String(r.classify_error).slice(0, 80)}</span>
+                          )}
                         </div>
                       </button>
                     ))}
@@ -1466,8 +1494,8 @@ export default function App() {
                         <tbody>
                           {(dataset.records || []).filter((r: any) => matchesLineage(r, evidenceFilter)).slice(0, 50).map((r: any) => (
                             <tr key={r.id} className={`border-t border-slate-100 hover:bg-slate-50 cursor-pointer ${r.confidence != null && r.confidence < 0.5 ? 'bg-amber-50/40' : ''}`} onClick={() => setDrawerRow(r)}>
-                              <td className="p-3 max-w-xs truncate">{r.title}</td>
-                              <td className="p-3"><GenreChip genre={r.genre} /></td>
+                              <td className="p-3 max-w-xs truncate">{r.title}{r.classify_error ? <div className="text-[11px] text-amber-800 truncate" title={String(r.classify_error)}>Not tagged · {String(r.classify_error).slice(0, 90)}</div> : null}</td>
+                              <td className="p-3">{r.labeled === false || !r.genre ? <span className="text-[11px] font-semibold text-amber-800">Not tagged</span> : <GenreChip genre={r.genre} />}</td>
                               <td className="p-3 text-slate-600">{r.trope || '—'}</td>
                               <td className="p-3"><ConfidenceBar value={r.confidence} /></td>
                               <td className="p-3 text-right font-mono text-xs">{Number(r.views || 0).toLocaleString()}</td>

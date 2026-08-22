@@ -13,6 +13,7 @@ ALTERS = [
     "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS methodology_id VARCHAR(36)",
     "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS parent_run_id VARCHAR(36)",
     "ALTER TABLE research_runs ADD COLUMN IF NOT EXISTS run_kind VARCHAR(32) DEFAULT 'seed'",
+    "ALTER TABLE videos ADD COLUMN IF NOT EXISTS classify_error TEXT",
 ]
 
 

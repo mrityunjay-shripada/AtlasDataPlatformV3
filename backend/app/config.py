@@ -33,10 +33,11 @@ class Settings(BaseSettings):
     enable_inline_worker: bool = True
     youtube_daily_unit_budget: int = 8000  # soft stop under default 10k
     youtube_search_units: int = 100
+    classify_coverage_min: float = 0.90  # completed requires labeled/collected >= this
     youtube_videos_units: int = 1
 
     app_env: str = "production"
-    app_version: str = "3.0.27"
+    app_version: str = "3.0.30"
     log_level: str = "INFO"
     cors_origins: str = "*"
     public_base_url: str = ""
