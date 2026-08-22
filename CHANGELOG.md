@@ -1,3 +1,8 @@
+## 3.0.29 — Library run ids visible
+- Each Library card shows short run id (first 8 chars) + completed date when available.
+- Compare dropdowns include video count next to id/status.
+- Compare genres table still maps genre_delta array (3.0.28).
+
 ## 3.0.28 — Compare genres table fix
 - Library Compare genres now maps backend genre_delta array (share_a/share_b/share_delta, counts).
 - Fixes empty table showing 0,1,2… with blank A/B/Δ.

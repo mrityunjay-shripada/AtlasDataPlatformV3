@@ -1674,7 +1674,9 @@ export default function App() {
                         <div className="font-medium text-slate-900 truncate">{r.research_question}</div>
                         <div className="text-xs text-slate-500 mt-1 flex flex-wrap gap-2 items-center">
                           <Badge tone={r.status === 'completed' ? 'green' : r.status === 'failed' ? 'red' : r.status === 'partial' ? 'amber' : 'blue'}>{r.status}</Badge>
-                          <span>{r.collected_count} videos</span>
+                          <span className="font-mono text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded" title={r.run_id}>{r.run_id.slice(0, 8)}</span>
+                          <span>{r.collected_count ?? 0} videos</span>
+                          {r.completed_at && <span>{String(r.completed_at).slice(0, 10)}</span>}
                           {r.error_code && <span>{r.error_code}</span>}
                         </div>
                       </button>
@@ -1701,11 +1703,11 @@ export default function App() {
                 <div className="flex flex-wrap gap-2 items-center">
                   <select className="border rounded-lg text-xs px-2 py-2" value={compareA} onChange={e => setCompareA(e.target.value)}>
                     <option value="">Run A</option>
-                    {history.map(h => <option key={h.run_id} value={h.run_id}>{h.run_id.slice(0, 8)} · {h.status}</option>)}
+                    {history.map(h => <option key={h.run_id} value={h.run_id}>{h.run_id.slice(0, 8)} · {h.status} · {h.collected_count ?? 0} vids</option>)}
                   </select>
                   <select className="border rounded-lg text-xs px-2 py-2" value={compareB} onChange={e => setCompareB(e.target.value)}>
                     <option value="">Run B</option>
-                    {history.map(h => <option key={h.run_id} value={h.run_id}>{h.run_id.slice(0, 8)} · {h.status}</option>)}
+                    {history.map(h => <option key={h.run_id} value={h.run_id}>{h.run_id.slice(0, 8)} · {h.status} · {h.collected_count ?? 0} vids</option>)}
                   </select>
                   <button
                     type="button"
