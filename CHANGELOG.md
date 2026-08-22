@@ -1,3 +1,7 @@
+## 3.0.28 — Compare genres table fix
+- Library Compare genres now maps backend genre_delta array (share_a/share_b/share_delta, counts).
+- Fixes empty table showing 0,1,2… with blank A/B/Δ.
+
 ## 3.0.27
 
 - Performance: Normal day views / Best hit + progress bars + coach notes

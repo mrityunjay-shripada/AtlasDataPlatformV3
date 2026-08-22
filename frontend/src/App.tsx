@@ -1718,16 +1718,37 @@ export default function App() {
                 </div>
                 {compareResult && (
                   <table className="min-w-full text-xs mt-2">
-                    <thead><tr className="text-left text-slate-500"><th className="p-2">Genre</th><th className="p-2">A</th><th className="p-2">B</th><th className="p-2">Δ</th></tr></thead>
+                    <thead>
+                      <tr className="text-left text-slate-500">
+                        <th className="p-2">Genre</th>
+                        <th className="p-2">A (share)</th>
+                        <th className="p-2">B (share)</th>
+                        <th className="p-2">Δ share</th>
+                        <th className="p-2">A n</th>
+                        <th className="p-2">B n</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {Object.entries(compareResult.genre_delta || {}).map(([g, v]: any) => (
-                        <tr key={g} className="border-t">
-                          <td className="p-2 capitalize">{g}</td>
-                          <td className="p-2">{v.a}</td>
-                          <td className="p-2">{v.b}</td>
-                          <td className={`p-2 font-mono ${v.delta > 0 ? 'text-emerald-700' : v.delta < 0 ? 'text-red-700' : ''}`}>{v.delta > 0 ? '+' : ''}{v.delta}</td>
-                        </tr>
-                      ))}
+                      {(Array.isArray(compareResult.genre_delta)
+                        ? compareResult.genre_delta
+                        : Object.entries(compareResult.genre_delta || {}).map(([genre, v]: any) => ({ genre, ...(v as object) }))
+                      ).map((row: any) => {
+                        const d = Number(row.share_delta ?? row.delta ?? 0)
+                        const sa = Number(row.share_a ?? row.a ?? 0)
+                        const sb = Number(row.share_b ?? row.b ?? 0)
+                        return (
+                          <tr key={String(row.genre)} className="border-t">
+                            <td className="p-2 capitalize">{row.genre}</td>
+                            <td className="p-2">{(sa * 100).toFixed(1)}%</td>
+                            <td className="p-2">{(sb * 100).toFixed(1)}%</td>
+                            <td className={`p-2 font-mono ${d > 0 ? 'text-emerald-700' : d < 0 ? 'text-red-700' : ''}`}>
+                              {d > 0 ? '+' : ''}{(d * 100).toFixed(1)} pp
+                            </td>
+                            <td className="p-2">{row.count_a ?? '—'}</td>
+                            <td className="p-2">{row.count_b ?? '—'}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 )}
